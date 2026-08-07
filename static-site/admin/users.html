@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Người dùng | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">👥 Người dùng</h1>
+      <button id="btn-add" class="btn-admin">+ Thêm người dùng</button>
+    </header>
+
+    <div class="admin-content space-y-4">
+      <div class="grid gap-4" id="content-grid">
+        <div class="admin-card" id="list-panel">
+          <div class="mb-4">
+            <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên, tài khoản..." style="max-width:24rem;" />
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Tên</th>
+                  <th>Tài khoản</th>
+                  <th>Vai trò</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="empty-state" class="hidden text-center text-gray-400 py-10">
+            <div class="text-4xl mb-2">👥</div>
+            <p>Chưa có người dùng nào.</p>
+          </div>
+        </div>
+
+        <div class="admin-card hidden" id="form-panel">
+          <h2 class="font-bold mb-3" style="color:#1a5276;" id="form-heading">Thêm người dùng</h2>
+          <form id="user-form" class="space-y-4">
+            <div id="username-field">
+              <label class="form-label">Tên đăng nhập</label>
+              <input type="text" id="u-username" class="form-input" style="font-family:monospace;" />
+              <p class="text-xs text-gray-400 mt-1">Chỉ dùng chữ thường, số, gạch dưới (≥ 3 ký tự)</p>
+            </div>
+
+            <div>
+              <label class="form-label">Tên hiển thị *</label>
+              <input type="text" id="u-name" class="form-input" required />
+            </div>
+
+            <div>
+              <label class="form-label">Vai trò</label>
+              <div id="role-options" class="space-y-2"></div>
+            </div>
+
+            <div>
+              <label class="form-label" id="password-label">Mật khẩu</label>
+              <input type="password" id="u-password" class="form-input" />
+            </div>
+
+            <div id="confirm-password-field" class="hidden">
+              <label class="form-label">Xác nhận mật khẩu</label>
+              <input type="password" id="u-confirm-password" class="form-input" />
+            </div>
+
+            <div id="form-error" class="hidden text-sm rounded-lg px-3 py-2" style="background:#fef2f2;color:#b91c1c;"></div>
+
+            <div class="flex gap-2">
+              <button type="submit" class="btn-admin">💾 Lưu</button>
+              <button type="button" id="btn-cancel" class="btn-admin-secondary">Hủy</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-card" id="role-legend">
+          <h2 class="font-bold mb-3" style="color:#1a5276;">🔑 Phân quyền</h2>
+          <div class="grid md:grid-cols-3 gap-4" id="role-legend-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const ROLE_DESC = {
+      admin: "Toàn quyền — quản lý user, cài đặt, nội dung",
+      editor: "Quản lý bài viết, thực đơn, đơn đặt bàn, đánh giá",
+      viewer: "Chỉ xem danh sách đơn đặt bàn (không sửa)",
+    };
+
+    const ROLE_PERMS = {
+      admin: ["Tất cả tính năng", "Quản lý người dùng", "Cài đặt trang", "Bài viết & thực đơn", "Đơn đặt bàn", "Đánh giá"],
+      editor: ["Bài viết & thực đơn", "Xem & xử lý đơn đặt bàn", "Đồng bộ đánh giá", "Không có quyền cài đặt"],
+      viewer: ["Chỉ xem đơn đặt bàn", "Không có quyền chỉnh sửa"],
+    };
+
+    let searchQuery = "";
+    let currentUser = null;
+    let editingId = null;
+    let selectedRole = "editor";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("users.html");
+      if (!currentUser) return;
+
+      if (currentUser.role !== "admin") {
+        document.querySelector(".admin-content").innerHTML = `<div class="admin-card text-gray-400">Bạn không có quyền truy cập trang quản lý người dùng.</div>`;
+        return;
+      }
+
+      renderRoleLegend();
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        render();
+      });
+
+      document.getElementById("btn-add").addEventListener("click", () => openForm(null));
+      document.getElementById("btn-cancel").addEventListener("click", closeForm);
+
+      document.getElementById("u-password").addEventListener("input", () => {
+        const has = document.getElementById("u-password").value.length > 0;
+        document.getElementById("confirm-password-field").classList.toggle("hidden", !has);
+      });
+
+      document.getElementById("user-form").addEventListener("submit", handleSubmit);
+
+      render();
+    });
+
+    function renderRoleLegend() {
+      document.getElementById("role-legend-grid").innerHTML = ROLES.map((role) => {
+        const rc = ROLE_COLORS[role];
+        return `
+          <div>
+            <span class="badge" style="color:${rc.color};background:${rc.bg};">${escapeHtml(ROLE_LABELS[role])}</span>
+            <ul class="text-sm text-gray-500 mt-2 space-y-1 list-disc list-inside">
+              ${ROLE_PERMS[role].map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
+            </ul>
+          </div>`;
+      }).join("");
+    }
+
+    function renderRoleOptions() {
+      document.getElementById("role-options").innerHTML = ROLES.map((role) => {
+        const rc = ROLE_COLORS[role];
+        return `
+          <label class="flex items-start gap-2 border rounded-lg p-2 cursor-pointer" style="border-color:${selectedRole === role ? "#e07b39" : "#e5e7eb"};">
+            <input type="radio" name="u-role" value="${role}" ${selectedRole === role ? "checked" : ""} class="mt-1" />
+            <div>
+              <span class="badge" style="color:${rc.color};background:${rc.bg};">${escapeHtml(ROLE_LABELS[role])}</span>
+              <p class="text-xs text-gray-500 mt-1">${escapeHtml(ROLE_DESC[role])}</p>
+            </div>
+          </label>`;
+      }).join("");
+
+      document.querySelectorAll('input[name="u-role"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          selectedRole = input.value;
+          renderRoleOptions();
+        });
+      });
+    }
+
+    function openForm(user) {
+      editingId = user ? user.id : null;
+      selectedRole = user ? user.role : "editor";
+
+      document.getElementById("form-heading").textContent = user ? "Sửa người dùng" : "Thêm người dùng";
+      document.getElementById("u-username").value = user ? user.username : "";
+      document.getElementById("u-username").disabled = !!user;
+      document.getElementById("u-name").value = user ? user.name : "";
+      document.getElementById("u-password").value = "";
+      document.getElementById("u-confirm-password").value = "";
+      document.getElementById("password-label").textContent = user ? "Mật khẩu mới (để trống nếu không đổi)" : "Mật khẩu *";
+      document.getElementById("confirm-password-field").classList.add("hidden");
+      document.getElementById("form-error").classList.add("hidden");
+
+      renderRoleOptions();
+
+      document.getElementById("content-grid").classList.add("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.remove("hidden");
+    }
+
+    function closeForm() {
+      editingId = null;
+      document.getElementById("content-grid").classList.remove("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.add("hidden");
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("form-error");
+      box.textContent = msg;
+      box.classList.remove("hidden");
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById("u-name").value.trim();
+      const username = document.getElementById("u-username").value.trim();
+      const password = document.getElementById("u-password").value;
+      const confirmPassword = document.getElementById("u-confirm-password").value;
+
+      if (!name) return showError("Vui lòng nhập tên hiển thị.");
+
+      if (!editingId) {
+        if (!/^[a-z0-9_]{3,}$/.test(username)) {
+          return showError("Tên đăng nhập chỉ dùng chữ thường, số, gạch dưới (tối thiểu 3 ký tự).");
+        }
+        if (db.users.getByUsername(username)) {
+          return showError("Tên đăng nhập đã tồn tại.");
+        }
+        if (!password) {
+          return showError("Vui lòng nhập mật khẩu.");
+        }
+      }
+
+      if (password && password !== confirmPassword) {
+        return showError("Mật khẩu xác nhận không khớp.");
+      }
+
+      const data = { name, role: selectedRole };
+      if (password) data.password = await hashPassword(password);
+
+      if (editingId) {
+        db.users.update(editingId, data);
+        showToast("Đã cập nhật người dùng", "success");
+      } else {
+        data.username = username;
+        db.users.create(data);
+        showToast("Đã thêm người dùng", "success");
+      }
+
+      closeForm();
+      render();
+    }
+
+    function render() {
+      const all = db.users.getAll();
+      const filtered = all.filter((u) =>
+        matchesSearch(searchQuery, u.name, u.username, ROLE_LABELS[u.role], u.createdAt)
+      );
+
+      const tbody = document.getElementById("users-tbody");
+      const emptyState = document.getElementById("empty-state");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+        return;
+      }
+
+      emptyState.classList.add("hidden");
+
+      tbody.innerHTML = filtered.map((u) => {
+        const rc = ROLE_COLORS[u.role] || ROLE_COLORS.viewer;
+        const isSelf = String(u.id) === String(currentUser.id);
+        const initial = (u.name || u.username || "?").trim().charAt(0).toUpperCase();
+
+        const actions = `
+          <button class="icon-btn" data-action="edit" data-id="${escapeHtml(u.id)}" title="Sửa">✏️</button>
+          ${isSelf ? "" : `<button class="icon-btn" data-action="delete" data-id="${escapeHtml(u.id)}" title="Xóa">🗑️</button>`}
+        `;
+
+        return `<tr>
+          <td><div style="width:2rem;height:2rem;border-radius:9999px;background:#1a5276;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">${escapeHtml(initial)}</div></td>
+          <td class="font-medium text-gray-700">${escapeHtml(u.name)}${isSelf ? ` <span class="text-xs text-gray-400">(bạn)</span>` : ""}</td>
+          <td style="font-family:monospace;">${escapeHtml(u.username)}</td>
+          <td><span class="badge" style="color:${rc.color};background:${rc.bg};">${escapeHtml(ROLE_LABELS[u.role] || u.role)}</span></td>
+          <td><div class="flex gap-1">${actions}</div></td>
+        </tr>`;
+      }).join("");
+
+      tbody.querySelectorAll('[data-action="edit"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const user = db.users.getById(btn.getAttribute("data-id"));
+          if (user) openForm(user);
+        });
+      });
+
+      tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (!confirm("Xóa người dùng này?")) return;
+          db.users.remove(btn.getAttribute("data-id"));
+          render();
+        });
+      });
+    }
+  </script>
+</body>
+</html>

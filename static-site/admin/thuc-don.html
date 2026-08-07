@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thực đơn | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">🍜 Thực đơn</h1>
+      <button id="btn-add" class="btn-admin">+ Thêm món</button>
+    </header>
+
+    <div class="admin-content">
+      <div class="grid gap-4" id="content-grid">
+        <div class="admin-card" id="list-panel">
+          <div class="mb-4">
+            <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên, mô tả, giá..." style="max-width:24rem;" />
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Ảnh</th>
+                  <th>Tên món</th>
+                  <th class="hidden md:table-cell">Giá</th>
+                  <th>Tình trạng</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="menu-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="empty-state" class="hidden text-center text-gray-400 py-10">
+            <div class="text-4xl mb-2">🍜</div>
+            <p>Chưa có món nào trong thực đơn.</p>
+          </div>
+
+          <div class="pagination" id="pagination"></div>
+        </div>
+
+        <div class="admin-card hidden" id="form-panel">
+          <h2 class="font-bold mb-3" style="color:#1a5276;" id="form-heading">Thêm món mới</h2>
+          <form id="menu-form" class="space-y-4">
+            <div>
+              <label class="form-label">Biểu tượng</label>
+              <div id="emoji-grid" class="flex flex-wrap gap-2 mb-2"></div>
+              <div class="flex gap-2 mb-1">
+                <input type="text" id="f-emoji" class="form-input" placeholder="Emoji hoặc URL ảnh" />
+                <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                  📁 Tải lên<input type="file" id="f-icon-file" accept="image/*" class="hidden" />
+                </label>
+              </div>
+              <div id="icon-upload-status" style="font-size:0.78rem;min-height:1.1em;"></div>
+              <div id="icon-preview" class="mt-2"></div>
+            </div>
+
+            <div>
+              <label class="form-label">Tên món *</label>
+              <input type="text" id="f-name" class="form-input" required />
+            </div>
+
+            <div>
+              <label class="form-label">Mô tả</label>
+              <textarea id="f-desc" class="form-textarea" rows="2"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="form-label">Giá</label>
+                <input type="text" id="f-price" class="form-input" placeholder="VD: 150.000đ" />
+              </div>
+              <div>
+                <label class="form-label">Nhãn</label>
+                <select id="f-tag" class="form-select"></select>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="f-available" class="w-4 h-4" checked />
+              <label for="f-available" class="text-sm text-gray-700">Còn hàng</label>
+            </div>
+
+            <div class="flex gap-2">
+              <button type="submit" class="btn-admin">💾 Lưu</button>
+              <button type="button" id="btn-cancel" class="btn-admin-secondary">Hủy</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const TAGS = ["Bán chạy", "Mới", "Yêu thích", "Đặc biệt", ""];
+    const EMOJIS = ["🍜", "🦀", "🦑", "🍤", "🥤", "🧃", "🐟", "🦐", "🥗", "🍵", "🍱", "🫙"];
+    const EMPTY = { emoji: "🍜", name: "", desc: "", price: "", tag: "", available: true };
+
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let searchQuery = "";
+    let currentUser = null;
+    let editingId = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("thuc-don.html");
+      if (!currentUser) return;
+
+      const editable = canEdit(currentUser.role);
+      if (!editable) {
+        document.getElementById("btn-add").classList.add("hidden");
+      }
+
+      // Tag select
+      const tagSelect = document.getElementById("f-tag");
+      tagSelect.innerHTML = TAGS.map((t) => `<option value="${escapeHtml(t)}">${t ? escapeHtml(t) : "— Không —"}</option>`).join("");
+
+      // Emoji grid
+      const emojiGrid = document.getElementById("emoji-grid");
+      emojiGrid.innerHTML = EMOJIS.map((e) => `<button type="button" class="icon-btn emoji-option" data-emoji="${e}" style="font-size:1.25rem;">${e}</button>`).join("");
+      emojiGrid.querySelectorAll(".emoji-option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById("f-emoji").value = btn.getAttribute("data-emoji");
+          highlightEmoji();
+          updateIconPreview();
+        });
+      });
+
+      document.getElementById("f-emoji").addEventListener("input", () => {
+        highlightEmoji();
+        updateIconPreview();
+      });
+
+      document.getElementById("f-icon-file").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const status = document.getElementById("icon-upload-status");
+        status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280";
+        try {
+          const fd = new FormData(); fd.append("file", file);
+          const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+          document.getElementById("f-emoji").value = data.url;
+          highlightEmoji();
+          updateIconPreview();
+          status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a";
+        } catch (err) {
+          status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
+        }
+        e.target.value = "";
+      });
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("btn-add").addEventListener("click", () => openForm(null));
+      document.getElementById("btn-cancel").addEventListener("click", closeForm);
+
+      document.getElementById("menu-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = {
+          emoji: document.getElementById("f-emoji").value.trim() || EMPTY.emoji,
+          name: document.getElementById("f-name").value.trim(),
+          desc: document.getElementById("f-desc").value.trim(),
+          price: document.getElementById("f-price").value.trim(),
+          tag: document.getElementById("f-tag").value,
+          available: document.getElementById("f-available").checked,
+        };
+        if (!data.name) {
+          alert("Vui lòng nhập tên món.");
+          return;
+        }
+        if (editingId) {
+          db.menu.update(editingId, data);
+          showToast("Đã cập nhật món ăn", "success");
+        } else {
+          db.menu.create(data);
+          showToast("Đã thêm món ăn", "success");
+        }
+        closeForm();
+        render();
+      });
+
+      render();
+    });
+
+    function highlightEmoji() {
+      const current = document.getElementById("f-emoji").value;
+      document.querySelectorAll("#emoji-grid .emoji-option").forEach((btn) => {
+        btn.style.background = btn.getAttribute("data-emoji") === current ? "#fef3e8" : "";
+        btn.style.borderColor = btn.getAttribute("data-emoji") === current ? "#e07b39" : "";
+      });
+    }
+
+    function updateIconPreview() {
+      const val = document.getElementById("f-emoji").value.trim();
+      const preview = document.getElementById("icon-preview");
+      if (isImageValue(val)) {
+        preview.innerHTML = `<img src="${escapeHtml(val)}" alt="" style="width:4rem;height:4rem;border-radius:0.5rem;object-fit:cover;" />`;
+      } else if (val) {
+        preview.innerHTML = `<div style="font-size:2.5rem;">${escapeHtml(val)}</div>`;
+      } else {
+        preview.innerHTML = "";
+      }
+    }
+
+    function openForm(item) {
+      editingId = item ? item.id : null;
+      const heading = document.getElementById("form-heading");
+      const form = document.getElementById("menu-form");
+
+      const data = item || EMPTY;
+      document.getElementById("f-emoji").value = data.emoji || EMPTY.emoji;
+      document.getElementById("f-name").value = data.name || "";
+      document.getElementById("f-desc").value = data.desc || "";
+      document.getElementById("f-price").value = data.price || "";
+      document.getElementById("f-tag").value = data.tag || "";
+      document.getElementById("f-available").checked = data.available !== false;
+
+      heading.textContent = item ? "Sửa món ăn" : "Thêm món mới";
+      highlightEmoji();
+      updateIconPreview();
+      document.getElementById("icon-upload-status").textContent = "";
+
+      document.getElementById("content-grid").classList.add("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.remove("hidden");
+    }
+
+    function closeForm() {
+      editingId = null;
+      document.getElementById("content-grid").classList.remove("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.add("hidden");
+    }
+
+    function render() {
+      const all = db.menu.getAll();
+      const filtered = all.filter((it) =>
+        matchesSearch(searchQuery, it.name, it.desc, it.tag, it.price)
+      );
+
+      const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > total) currentPage = total;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+      const tbody = document.getElementById("menu-tbody");
+      const emptyState = document.getElementById("empty-state");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+        const editable = canEdit(currentUser.role);
+
+        tbody.innerHTML = pageItems.map((item, i) => {
+          const globalIdx = start + i;               // vị trí trong danh sách đầy đủ
+          const isFirst = globalIdx === 0;
+          const isLast = globalIdx === filtered.length - 1;
+          const thumb = isImageValue(item.emoji)
+            ? `<img src="${escapeHtml(item.emoji)}" alt="" style="width:2.5rem;height:2.5rem;border-radius:0.4rem;object-fit:cover;" />`
+            : `<div style="width:2.5rem;height:2.5rem;border-radius:0.4rem;background:#fef3e8;display:flex;align-items:center;justify-content:center;font-size:1.25rem;">${item.emoji || "🍜"}</div>`;
+
+          const availBadge = item.available
+            ? `<span class="badge badge-green">Còn</span>`
+            : `<span class="badge badge-gray">Hết</span>`;
+
+          // Nút sắp xếp chỉ hiện khi có quyền sửa VÀ không đang tìm kiếm
+          // (tìm kiếm sẽ ẩn bớt món nên đổi thứ tự dễ gây nhầm).
+          const reorderBtns = (editable && !searchQuery) ? `
+            <button class="icon-btn" data-action="up" data-id="${escapeHtml(item.id)}" title="Lên trên"${isFirst ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▲</button>
+            <button class="icon-btn" data-action="down" data-id="${escapeHtml(item.id)}" title="Xuống dưới"${isLast ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▼</button>
+          ` : "";
+
+          const actions = editable ? `
+            ${reorderBtns}
+            <button class="icon-btn" data-action="toggle" data-id="${escapeHtml(item.id)}" title="${item.available ? "Đánh dấu hết" : "Đánh dấu còn"}">${item.available ? "🚫" : "✅"}</button>
+            <button class="icon-btn" data-action="edit" data-id="${escapeHtml(item.id)}" title="Sửa">✏️</button>
+            <button class="icon-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Xóa">🗑️</button>
+          ` : `<span class="text-gray-300 text-xs">—</span>`;
+
+          return `<tr>
+            <td>${thumb}</td>
+            <td>
+              <div class="font-medium text-gray-700">${escapeHtml(item.name)}</div>
+              ${item.tag ? `<span class="badge badge-blue">${escapeHtml(item.tag)}</span>` : ""}
+              <div class="text-xs text-gray-400">${escapeHtml(item.desc || "")}</div>
+            </td>
+            <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(item.price || "")}</td>
+            <td>${availBadge}</td>
+            <td><div class="flex gap-1">${actions}</div></td>
+          </tr>`;
+        }).join("");
+
+        const moveItem = (id, dir) => {
+          const all = db.menu.getAll();
+          const idx = all.findIndex((m) => String(m.id) === String(id));
+          if (idx === -1) return;
+          const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+          if (swapIdx < 0 || swapIdx >= all.length) return;
+          const ids = all.map((m) => m.id);
+          [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
+          db.menu.reorder(ids);
+          render();
+        };
+        tbody.querySelectorAll('[data-action="up"]').forEach((btn) => {
+          btn.addEventListener("click", () => { if (!btn.disabled) moveItem(btn.getAttribute("data-id"), "up"); });
+        });
+        tbody.querySelectorAll('[data-action="down"]').forEach((btn) => {
+          btn.addEventListener("click", () => { if (!btn.disabled) moveItem(btn.getAttribute("data-id"), "down"); });
+        });
+
+        tbody.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            const item = db.menu.getById(id);
+            if (!item) return;
+            db.menu.update(id, { available: !item.available });
+            render();
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="edit"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            const item = db.menu.getById(id);
+            if (item) openForm(item);
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            if (!confirm("Xóa món ăn này?")) return;
+            db.menu.remove(id);
+            render();
+          });
+        });
+      }
+
+      renderPagination(document.getElementById("pagination"), currentPage, total, (page) => {
+        currentPage = page;
+        render();
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đặt bàn | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">📋 Đặt bàn</h1>
+      <button id="btn-export" class="btn-admin-secondary">⬇️ Xuất CSV</button>
+    </header>
+
+    <div class="admin-content">
+      <div class="admin-card">
+        <div class="flex flex-wrap gap-2 mb-4" id="filter-tabs"></div>
+
+        <div class="mb-4 flex flex-wrap items-end gap-2">
+          <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên, SĐT, email..." style="max-width:24rem;" />
+          <div>
+            <label class="form-label" style="margin-bottom:0.25rem;">Từ ngày</label>
+            <input type="date" id="filter-date-from" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label" style="margin-bottom:0.25rem;">Đến ngày</label>
+            <input type="date" id="filter-date-to" class="form-input" />
+          </div>
+          <button type="button" id="btn-clear-date" class="btn-admin-secondary">Xóa lọc ngày</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Họ tên</th>
+                <th>SĐT</th>
+                <th class="hidden md:table-cell">Email</th>
+                <th class="hidden md:table-cell">Khách</th>
+                <th>Trạng thái</th>
+                <th class="hidden lg:table-cell">Ngày đặt</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="reservations-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="empty-state" class="hidden text-center text-gray-400 py-10">
+          <div class="text-4xl mb-2">📋</div>
+          <p>Không có đơn đặt bàn nào.</p>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail modal -->
+  <div class="modal-overlay hidden" id="detail-modal">
+    <div class="modal-box">
+      <div class="flex justify-between items-start mb-4">
+        <h2 class="font-bold text-lg" style="color:#1a5276;">Chi tiết đặt bàn</h2>
+        <button id="modal-close" class="icon-btn">✕</button>
+      </div>
+      <div id="modal-body" class="space-y-2 text-sm"></div>
+      <div class="flex flex-wrap gap-2 mt-4" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const STATUS_LABELS = {
+      new: { label: "Mới", color: "#dc2626", bg: "#fef2f2" },
+      read: { label: "Đã xem", color: "#d97706", bg: "#fffbeb" },
+      done: { label: "Hoàn thành", color: "#16a34a", bg: "#f0fdf4" },
+      confirmed: { label: "Xác nhận", color: "#2563eb", bg: "#eff6ff" },
+    };
+    const DEFAULT_STATUS = { label: "Không rõ", color: "#6b7280", bg: "#f3f4f6" };
+
+    const FILTERS = [
+      { key: "all", label: "Tất cả" },
+      { key: "new", label: "Mới" },
+      { key: "read", label: "Đã xem" },
+      { key: "done", label: "Hoàn thành" },
+    ];
+
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let searchQuery = "";
+    let activeFilter = "all";
+    let dateFrom = "";
+    let dateTo = "";
+    let currentUser = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("dat-ban.html");
+      if (!currentUser) return;
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("filter-date-from").addEventListener("change", (e) => {
+        dateFrom = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("filter-date-to").addEventListener("change", (e) => {
+        dateTo = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("btn-clear-date").addEventListener("click", () => {
+        dateFrom = "";
+        dateTo = "";
+        document.getElementById("filter-date-from").value = "";
+        document.getElementById("filter-date-to").value = "";
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("btn-export").addEventListener("click", exportReservations);
+      document.getElementById("modal-close").addEventListener("click", closeModal);
+      document.getElementById("detail-modal").addEventListener("click", (e) => {
+        if (e.target.id === "detail-modal") closeModal();
+      });
+
+      render();
+    });
+
+    function statusBadgeHtml(status) {
+      const s = STATUS_LABELS[status] || DEFAULT_STATUS;
+      return `<span class="badge" style="color:${s.color};background:${s.bg};">${escapeHtml(s.label)}</span>`;
+    }
+
+    function render() {
+      const all = db.reservations.getAll();
+
+      const counts = { all: all.length, new: 0, read: 0, done: 0 };
+      all.forEach((r) => {
+        if (counts[r.status] !== undefined) counts[r.status]++;
+      });
+
+      document.getElementById("filter-tabs").innerHTML = FILTERS.map((f) => `
+        <button type="button" class="btn-admin-secondary filter-btn" data-filter="${f.key}" style="${activeFilter === f.key ? "background:#e07b39;color:#fff;border-color:#e07b39;" : ""}">${f.label} (${counts[f.key] ?? 0})</button>
+      `).join("");
+
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeFilter = btn.getAttribute("data-filter");
+          currentPage = 1;
+          render();
+        });
+      });
+
+      let filtered = activeFilter === "all" ? all : all.filter((r) => r.status === activeFilter);
+      filtered = filtered.filter((r) =>
+        matchesSearch(searchQuery, r.name, r.phone, r.email, r.guests, r.message, r.status)
+      );
+
+      if (dateFrom || dateTo) {
+        filtered = filtered.filter((r) => {
+          if (!r.createdAt) return false;
+          const created = r.createdAt.slice(0, 10);
+          if (dateFrom && created < dateFrom) return false;
+          if (dateTo && created > dateTo) return false;
+          return true;
+        });
+      }
+
+      const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > total) currentPage = total;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+      const tbody = document.getElementById("reservations-tbody");
+      const emptyState = document.getElementById("empty-state");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+
+        tbody.innerHTML = pageItems.map((r) => {
+          const createdAt = r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "";
+          const actions = [];
+          if (r.status === "new") {
+            actions.push(`<button class="icon-btn" data-action="read" data-id="${escapeHtml(r.id)}" title="Đánh dấu đã xem">👁</button>`);
+          }
+          if (r.status !== "done") {
+            actions.push(`<button class="icon-btn" data-action="done" data-id="${escapeHtml(r.id)}" title="Đánh dấu hoàn thành">✅</button>`);
+          }
+          if (currentUser.role === "admin") {
+            actions.push(`<button class="icon-btn" data-action="delete" data-id="${escapeHtml(r.id)}" title="Xoá booking">🗑️</button>`);
+          }
+
+          return `<tr class="cursor-pointer" data-row-id="${escapeHtml(r.id)}">
+            <td class="font-medium text-gray-700">${escapeHtml(r.name)}</td>
+            <td class="whitespace-nowrap">${escapeHtml(r.phone)}</td>
+            <td class="hidden md:table-cell">${escapeHtml(r.email || "")}</td>
+            <td class="hidden md:table-cell">${escapeHtml(r.guests || "")}</td>
+            <td>${statusBadgeHtml(r.status)}</td>
+            <td class="hidden lg:table-cell whitespace-nowrap">${escapeHtml(createdAt)}</td>
+            <td><div class="flex gap-1">${actions.join("")}</div></td>
+          </tr>`;
+        }).join("");
+
+        tbody.querySelectorAll("tr[data-row-id]").forEach((row) => {
+          row.addEventListener("click", (e) => {
+            if (e.target.closest("[data-action]")) return;
+            const id = row.getAttribute("data-row-id");
+            const r = db.reservations.getAll().find((x) => String(x.id) === String(id));
+            if (r) openModal(r);
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="read"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            db.reservations.updateStatus(btn.getAttribute("data-id"), "read");
+            render();
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="done"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            db.reservations.updateStatus(btn.getAttribute("data-id"), "done");
+            render();
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            if (!(await confirmDialog("Xoá booking này? Thao tác không thể hoàn tác."))) return;
+            db.reservations.remove(btn.getAttribute("data-id"));
+            showToast("Đã xoá booking", "success");
+            render();
+          });
+        });
+      }
+
+      renderPagination(document.getElementById("pagination"), currentPage, total, (page) => {
+        currentPage = page;
+        render();
+      });
+    }
+
+    function openModal(r) {
+      const createdAt = r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "";
+      document.getElementById("modal-body").innerHTML = `
+        <p><strong>Họ tên:</strong> ${escapeHtml(r.name)}</p>
+        <p><strong>Điện thoại:</strong> <a href="tel:${escapeHtml(r.phone)}" style="color:#e07b39;">${escapeHtml(r.phone)}</a></p>
+        ${r.email ? `<p><strong>Email:</strong> <a href="mailto:${escapeHtml(r.email)}" style="color:#e07b39;">${escapeHtml(r.email)}</a></p>` : ""}
+        <p><strong>Số khách:</strong> ${escapeHtml(r.guests || "")}</p>
+        <p><strong>Ngày:</strong> ${escapeHtml(r.date || "")}</p>
+        <p><strong>Giờ:</strong> ${escapeHtml(r.time || "")}</p>
+        ${r.message ? `<p><strong>Ghi chú:</strong> ${escapeHtml(r.message)}</p>` : ""}
+        <p><strong>Trạng thái:</strong> ${statusBadgeHtml(r.status)}</p>
+        <p class="text-gray-400 text-xs"><strong>Ngày đặt:</strong> ${escapeHtml(createdAt)}</p>
+      `;
+
+      const actions = [];
+      if (r.status !== "read" && r.status === "new") {
+        actions.push(`<button class="btn-admin-secondary" data-modal-action="read">👁 Đánh dấu đã xem</button>`);
+      }
+      if (r.status !== "done") {
+        actions.push(`<button class="btn-admin" data-modal-action="done">✅ Đánh dấu hoàn thành</button>`);
+      }
+      if (r.status !== "new") {
+        actions.push(`<button class="btn-admin-secondary" data-modal-action="new">↩ Đặt lại trạng thái Mới</button>`);
+      }
+      if (currentUser.role === "admin") {
+        actions.push(`<button class="btn-admin-secondary" data-modal-action="delete" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;">🗑️ Xoá booking</button>`);
+      }
+
+      document.getElementById("modal-actions").innerHTML = actions.join("");
+      document.querySelectorAll("[data-modal-action]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const action = btn.getAttribute("data-modal-action");
+          if (action === "delete") {
+            if (!(await confirmDialog("Xoá booking này? Thao tác không thể hoàn tác."))) return;
+            db.reservations.remove(r.id);
+            showToast("Đã xoá booking", "success");
+          } else {
+            db.reservations.updateStatus(r.id, action);
+          }
+          closeModal();
+          render();
+        });
+      });
+
+      document.getElementById("detail-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("detail-modal").classList.add("hidden");
+    }
+
+    function exportReservations() {
+      const all = db.reservations.getAll();
+      const headers = [
+        { key: "name", label: "Họ tên" },
+        { key: "phone", label: "Điện thoại" },
+        { key: "email", label: "Email" },
+        { key: "guests", label: "Số khách" },
+        { key: "date", label: "Ngày" },
+        { key: "time", label: "Giờ" },
+        { key: "status", label: "Trạng thái" },
+        { key: "message", label: "Ghi chú" },
+        { key: "createdAt", label: "Ngày đặt" },
+      ];
+      const rows = all.map((r) => ({
+        ...r,
+        status: (STATUS_LABELS[r.status] || DEFAULT_STATUS).label,
+        createdAt: r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "",
+      }));
+      const filename = `dat-ban-${new Date().toISOString().slice(0, 10)}.csv`;
+      exportCsv(filename, rows, headers);
+    }
+  </script>
+</body>
+</html>

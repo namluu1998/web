@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Quản trị Bún Quậy Như Ý</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🍜 Bún Quậy<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Như Ý Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">📊 Dashboard</h1>
+      <span id="dash-date" style="font-size:0.85rem;color:#666;"></span>
+    </header>
+
+    <div class="admin-content">
+
+      <!-- MySQL status banner -->
+      <div id="db-status-banner" style="display:none;margin-bottom:1rem;"></div>
+
+      <!-- Stats cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem;" id="stat-cards"></div>
+
+      <!-- Two columns: reservations + menu -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;" class="dash-cols">
+
+        <!-- Đặt bàn gần đây -->
+        <div class="admin-card" style="padding:1.25rem;">
+          <h2 style="font-weight:700;font-size:1rem;margin-bottom:1rem;color:#1a5276;">📋 Đặt bàn gần đây</h2>
+          <div id="recent-reservations"></div>
+          <a href="dat-ban.html" style="display:inline-block;margin-top:0.75rem;font-size:0.85rem;color:#2980b9;">Xem tất cả →</a>
+        </div>
+
+        <!-- Thực đơn -->
+        <div class="admin-card" style="padding:1.25rem;">
+          <h2 style="font-weight:700;font-size:1rem;margin-bottom:1rem;color:#1a5276;">🍜 Thực đơn hiện tại</h2>
+          <div id="menu-list"></div>
+          <a href="thuc-don.html" style="display:inline-block;margin-top:0.75rem;font-size:0.85rem;color:#2980b9;">Quản lý thực đơn →</a>
+        </div>
+      </div>
+
+      <!-- Bài viết mới nhất -->
+      <div class="admin-card" style="padding:1.25rem;">
+        <h2 style="font-weight:700;font-size:1rem;margin-bottom:1rem;color:#1a5276;">📝 Bài viết mới nhất</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+          <thead>
+            <tr style="border-bottom:2px solid #e5e7eb;">
+              <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;">Tiêu đề</th>
+              <th style="text-align:center;padding:0.5rem;color:#6b7280;font-weight:600;width:80px;">Lượt xem</th>
+              <th style="text-align:center;padding:0.5rem;color:#6b7280;font-weight:600;width:80px;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="recent-posts"></tbody>
+        </table>
+        <a href="bai-viet.html" style="display:inline-block;margin-top:0.75rem;font-size:0.85rem;color:#2980b9;">Xem tất cả bài viết →</a>
+      </div>
+
+    </div><!-- /admin-content -->
+  </div><!-- /admin-main -->
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const user = initAdminLayout("dashboard.html");
+      if (!user) return;
+
+      // Date header
+      const d = new Date();
+      document.getElementById("dash-date").textContent =
+        d.toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+      // ── MySQL status check ────────────────────────────────────────
+      checkDBStatus();
+      async function checkDBStatus() {
+        const banner = document.getElementById("db-status-banner");
+        try {
+          const res = await fetch("/api.php?action=status");
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const s = await res.json();
+          if (s.seeded) {
+            // DB has data — chỉ hiện nếu đang dùng localStorage fallback
+            if (!_useAPI) {
+              banner.style.display = "block";
+              banner.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:0.75rem 1rem;font-size:0.875rem;display:flex;align-items:center;gap:0.75rem;">
+                <span>⚠️</span>
+                <span>MySQL có dữ liệu nhưng trang đang chạy ở chế độ <strong>localStorage</strong>. Thử <strong><a href="" style="color:#92400e;">reload trang</a></strong>.</span>
+              </div>`;
+            }
+          } else {
+            // DB chưa có dữ liệu
+            banner.style.display = "block";
+            banner.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;font-size:0.875rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+              <span>🔴 <strong>MySQL chưa có dữ liệu</strong> — website đang chạy bằng localStorage (mỗi thiết bị dữ liệu khác nhau).</span>
+              <button id="btn-seed-db" onclick="seedDB()" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.85rem;cursor:pointer;white-space:nowrap;">⚡ Seed vào MySQL</button>
+            </div>`;
+          }
+        } catch(e) {
+          // api.php không phản hồi — không cần hiện gì (dev mode)
+        }
+      }
+
+      window.seedDB = async function() {
+        const btn = document.getElementById("btn-seed-db");
+        if (!btn) return;
+        btn.disabled = true; btn.textContent = "⏳ Đang seed...";
+        try {
+          const seed = {
+            settings:     (typeof SETTINGS_SEED     !== "undefined" ? SETTINGS_SEED     : {}),
+            menu:         (typeof MENU_SEED         !== "undefined" ? MENU_SEED         : []),
+            posts:        (typeof POSTS_SEED        !== "undefined" ? POSTS_SEED        : []),
+            reservations: (typeof RESERVATIONS_SEED !== "undefined" ? RESERVATIONS_SEED : []),
+            reviews:      (typeof REVIEWS_SEED      !== "undefined" ? REVIEWS_SEED      : {}),
+            faqs:         (typeof FAQS_SEED         !== "undefined" ? FAQS_SEED         : []),
+            users:        (typeof USERS_SEED        !== "undefined" ? USERS_SEED        : []),
+          };
+          const res = await fetch("/api.php?action=seed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(seed),
+          });
+          const data = await res.json();
+          if (res.ok && data.seeded) {
+            showToast("✅ Seed MySQL thành công! Đang tải lại...", "success");
+            setTimeout(() => location.reload(), 1500);
+          } else {
+            showToast("❌ Seed thất bại: " + JSON.stringify(data), "error");
+            btn.disabled = false; btn.textContent = "⚡ Seed vào MySQL";
+          }
+        } catch(e) {
+          showToast("❌ Lỗi kết nối: " + e.message, "error");
+          btn.disabled = false; btn.textContent = "⚡ Seed vào MySQL";
+        }
+      };
+
+      const posts        = db.posts.getAll();
+      const menu         = db.menu.getAll();
+      const reservations = db.reservations.getAll();
+      const reviews      = db.reviews.get();
+
+      const newRes    = reservations.filter(r => r.status === "new").length;
+      const pubPosts  = posts.filter(p => p.published).length;
+      const menuAvail = menu.filter(m => m.available !== false).length;
+      const rating    = reviews?.rating || 0;
+
+      // ── Stat cards ────────────────────────────────────────────
+      const stats = [
+        { icon: "📋", label: "Đặt bàn mới",   value: newRes,              color: "#e74c3c", link: "dat-ban.html" },
+        { icon: "📝", label: "Bài viết đã đăng", value: pubPosts,          color: "#2980b9", link: "bai-viet.html" },
+        { icon: "🍜", label: "Món đang bán",   value: menuAvail,            color: "#27ae60", link: "thuc-don.html" },
+        { icon: "⭐", label: "Đánh giá TB",    value: rating.toFixed(1),   color: "#f39c12", link: "danh-gia.html" },
+      ];
+
+      document.getElementById("stat-cards").innerHTML = stats.map(s => `
+        <a href="${s.link}" style="text-decoration:none;">
+          <div style="background:#fff;border-radius:12px;padding:1.25rem 1rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:4px solid ${s.color};transition:box-shadow .2s;"
+               onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'">
+            <div style="font-size:1.75rem;margin-bottom:0.4rem;">${s.icon}</div>
+            <div style="font-size:1.75rem;font-weight:800;color:${s.color};line-height:1;">${escapeHtml(String(s.value))}</div>
+            <div style="font-size:0.8rem;color:#6b7280;margin-top:0.25rem;">${escapeHtml(s.label)}</div>
+          </div>
+        </a>`).join("");
+
+      // ── Đặt bàn gần đây (5 cái mới nhất) ────────────────────
+      const recentRes = [...reservations]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 5);
+
+      const statusLabel = { new: "Mới", confirmed: "Xác nhận", cancelled: "Huỷ", done: "Hoàn thành" };
+      const statusColor = { new: "#e74c3c", confirmed: "#27ae60", cancelled: "#95a5a6", done: "#2980b9" };
+
+      document.getElementById("recent-reservations").innerHTML = recentRes.length
+        ? recentRes.map(r => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f3f4f6;">
+            <div>
+              <div style="font-weight:600;font-size:0.875rem;">${escapeHtml(r.name || "—")}</div>
+              <div style="font-size:0.75rem;color:#6b7280;">${escapeHtml(r.phone || "")} · ${escapeHtml(r.guests || "?")} người · ${escapeHtml(r.date || "")}</div>
+            </div>
+            <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:9999px;background:${statusColor[r.status]||'#95a5a6'}20;color:${statusColor[r.status]||'#95a5a6'};">
+              ${escapeHtml(statusLabel[r.status] || r.status)}
+            </span>
+          </div>`).join("")
+        : "<p style='color:#6b7280;font-size:0.875rem;'>Chưa có đặt bàn nào.</p>";
+
+      // ── Thực đơn ──────────────────────────────────────────────
+      document.getElementById("menu-list").innerHTML = menu.map(m => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid #f3f4f6;">
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            ${isImageValue(m.emoji)
+              ? `<img src="${escapeHtml(m.emoji)}" alt="" style="width:1.75rem;height:1.75rem;border-radius:0.35rem;object-fit:cover;flex-shrink:0;" />`
+              : `<span style="font-size:1.2rem;">${escapeHtml(m.emoji || "🍜")}</span>`}
+            <span style="font-size:0.875rem;font-weight:500;">${escapeHtml(m.name)}</span>
+            ${m.tag ? `<span style="font-size:0.7rem;padding:0.1rem 0.4rem;background:#fef3c7;color:#92400e;border-radius:4px;">${escapeHtml(m.tag)}</span>` : ""}
+          </div>
+          <span style="font-weight:700;color:#27ae60;font-size:0.875rem;">${escapeHtml(m.price)}</span>
+        </div>`).join("");
+
+      // ── Bài viết mới nhất (7 bài) ─────────────────────────────
+      const recentPosts = [...posts]
+        .sort((a, b) => parseInt(b.id) - parseInt(a.id))
+        .slice(0, 7);
+
+      document.getElementById("recent-posts").innerHTML = recentPosts.map(p => `
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:0.5rem 0.75rem;">
+            <a href="bai-viet-form.html?id=${escapeHtml(p.id)}" style="color:#1a5276;text-decoration:none;font-weight:500;" title="${escapeHtml(p.title)}">
+              ${escapeHtml(isImageValue(p.emoji) ? "📝" : (p.emoji || "📝"))} ${escapeHtml((p.title || "").slice(0, 60))}${(p.title || "").length > 60 ? "…" : ""}
+            </a>
+          </td>
+          <td style="text-align:center;padding:0.5rem;color:#6b7280;">${escapeHtml(String(p.views || 0))}</td>
+          <td style="text-align:center;padding:0.5rem;">
+            <span style="font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:9999px;${p.published ? "background:#d1fae5;color:#065f46;" : "background:#f3f4f6;color:#6b7280;"}">
+              ${p.published ? "Hiện" : "Ẩn"}
+            </span>
+          </td>
+        </tr>`).join("");
+    });
+  </script>
+</body>
+</html>

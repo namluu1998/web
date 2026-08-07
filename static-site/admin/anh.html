@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Góc Ảnh Quán | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">🖼️ Góc Ảnh Quán</h1>
+      <button id="btn-save" class="btn-admin">💾 Lưu thay đổi</button>
+    </header>
+
+    <div class="admin-content space-y-4">
+      <div class="admin-card">
+        <p class="text-sm text-gray-500">
+          Quản lý ảnh/video hiển thị ở mục <strong>"Góc Ảnh Quán"</strong> trên trang chủ. Có thể bổ sung ảnh hoặc video mới mỗi ngày —
+          nếu chưa có ảnh/video nào, trang chủ sẽ tự hiện ảnh minh họa mặc định. Video tối đa 30MB (MP4/WebM/MOV).
+        </p>
+      </div>
+
+      <div class="admin-card">
+        <div id="gallery-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <button type="button" id="btn-add-gallery" class="btn-admin-secondary mt-3">+ Thêm ảnh/video</button>
+        <div id="gallery-empty" class="hidden text-center text-gray-400 py-8">
+          <div class="text-4xl mb-2">🖼️</div>
+          <p>Chưa có ảnh/video nào — trang chủ đang hiển thị ảnh minh họa mặc định.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    let settings = null;
+    let images = [];
+    let currentUser = null;
+    let editable = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("anh.html");
+      if (!currentUser) return;
+
+      editable = canEdit(currentUser.role);
+      if (!editable) {
+        document.getElementById("btn-save").classList.add("hidden");
+        document.getElementById("btn-add-gallery").classList.add("hidden");
+      }
+
+      settings = db.settings.get();
+      images = (settings.galleryImages || []).map((item) =>
+        typeof item === "string" ? { src: item, label: "" } : { src: item.src || "", label: item.label || "" }
+      );
+
+      render();
+
+      document.getElementById("btn-save").addEventListener("click", save);
+      document.getElementById("btn-add-gallery").addEventListener("click", () => {
+        images.push({ src: "", label: "" });
+        render();
+      });
+    });
+
+    function render() {
+      const list = document.getElementById("gallery-list");
+      const empty = document.getElementById("gallery-empty");
+
+      empty.classList.toggle("hidden", images.length > 0);
+      list.classList.toggle("hidden", images.length === 0);
+
+      list.innerHTML = images.map((img, i) => `
+        <div class="border rounded-lg p-3 space-y-2" style="border-color:#e5e7eb;">
+          ${isVideoValue(img.src) ? `<video src="${escapeHtml(img.src)}" controls style="width:100%;height:8rem;object-fit:cover;border-radius:0.4rem;background:#000;"></video>` : isImageValue(img.src) ? `<img src="${escapeHtml(img.src)}" alt="" style="width:100%;height:8rem;object-fit:cover;border-radius:0.4rem;" />` : `<div style="width:100%;height:8rem;border-radius:0.4rem;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.8rem;">Chưa có ảnh/video</div>`}
+          <input type="text" class="form-input gallery-url" data-index="${i}" placeholder="URL ảnh hoặc video" value="${escapeHtml(img.src || "")}" ${editable ? "" : "disabled"} />
+          ${editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.7rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.4rem;font-size:0.8rem;">📁 Tải lên<input type="file" class="hidden gallery-file" data-index="${i}" accept="image/*,video/*" /></label><div class="gallery-upload-status" data-index="${i}" style="font-size:0.75rem;min-height:1em;"></div>` : ""}
+          <input type="text" class="form-input gallery-label" data-index="${i}" placeholder="Chú thích (VD: Bún quậy tôm tươi)" value="${escapeHtml(img.label || "")}" ${editable ? "" : "disabled"} />
+          <div class="flex gap-1 justify-end">
+            <button type="button" class="icon-btn" data-action="move-up" data-index="${i}" ${i === 0 || !editable ? "disabled" : ""}>↑</button>
+            <button type="button" class="icon-btn" data-action="move-down" data-index="${i}" ${i === images.length - 1 || !editable ? "disabled" : ""}>↓</button>
+            <button type="button" class="icon-btn" data-action="remove-img" data-index="${i}" ${editable ? "" : "disabled"}>🗑️</button>
+          </div>
+        </div>
+      `).join("");
+
+      if (!editable) return;
+
+      list.querySelectorAll(".gallery-url").forEach((input) => {
+        input.addEventListener("input", () => {
+          images[parseInt(input.getAttribute("data-index"), 10)].src = input.value;
+        });
+        input.addEventListener("change", () => render());
+      });
+      list.querySelectorAll(".gallery-label").forEach((input) => {
+        input.addEventListener("input", () => {
+          images[parseInt(input.getAttribute("data-index"), 10)].label = input.value;
+        });
+      });
+      list.querySelectorAll(".gallery-file").forEach((input) => {
+        input.addEventListener("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const idx = parseInt(input.getAttribute("data-index"), 10);
+          const statusEl = list.querySelector(`.gallery-upload-status[data-index="${idx}"]`);
+          if (statusEl) { statusEl.textContent = "⏳ Đang upload..."; statusEl.style.color = "#6b7280"; }
+          try {
+            const fd = new FormData(); fd.append("file", file);
+            const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+            const data = await res.json();
+            if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+            images[idx].src = data.url;
+            render();
+          } catch (err) {
+            if (statusEl) { statusEl.textContent = "❌ " + err.message; statusEl.style.color = "#dc2626"; }
+          }
+          e.target.value = "";
+        });
+      });
+      list.querySelectorAll('[data-action="move-up"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = parseInt(btn.getAttribute("data-index"), 10);
+          [images[i - 1], images[i]] = [images[i], images[i - 1]];
+          render();
+        });
+      });
+      list.querySelectorAll('[data-action="move-down"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = parseInt(btn.getAttribute("data-index"), 10);
+          [images[i + 1], images[i]] = [images[i], images[i + 1]];
+          render();
+        });
+      });
+      list.querySelectorAll('[data-action="remove-img"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          images.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
+          render();
+        });
+      });
+    }
+
+    function save() {
+      const galleryImages = images
+        .map((img) => ({ src: (img.src || "").trim(), label: (img.label || "").trim() }))
+        .filter((img) => isImageValue(img.src) || isVideoValue(img.src));
+      db.settings.update({ galleryImages });
+      settings = db.settings.get();
+      showToast("Đã lưu Góc Ảnh Quán", "success");
+    }
+  </script>
+</body>
+</html>

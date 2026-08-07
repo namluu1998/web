@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bài viết | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">📝 Bài viết</h1>
+      <a href="bai-viet-form.html" id="btn-new-post" class="btn-admin">+ Viết bài mới</a>
+    </header>
+
+    <div class="admin-content">
+      <div class="admin-card">
+        <div class="mb-4">
+          <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tiêu đề, tag, ngày..." style="max-width:24rem;" />
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th class="hidden sm:table-cell">Ảnh</th>
+                <th>Tiêu đề</th>
+                <th class="hidden md:table-cell">Lượt xem</th>
+                <th class="hidden md:table-cell">Ngày</th>
+                <th class="hidden sm:table-cell">Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="posts-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="empty-state" class="hidden text-center text-gray-400 py-10">
+          <div class="text-4xl mb-2">📝</div>
+          <p>Chưa có bài viết nào.</p>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let searchQuery = "";
+    let currentUser = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("bai-viet.html");
+      if (!currentUser) return;
+
+      if (!canEdit(currentUser.role)) {
+        document.getElementById("btn-new-post").classList.add("hidden");
+      }
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      render();
+    });
+
+    function render() {
+      const all = db.posts.getAll();
+      const filtered = all.filter((p) =>
+        matchesSearch(searchQuery, p.title, p.tag, p.tags, p.excerpt, p.date)
+      );
+
+      const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > total) currentPage = total;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+      const tbody = document.getElementById("posts-tbody");
+      const emptyState = document.getElementById("empty-state");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+        const editable = canEdit(currentUser.role);
+
+        tbody.innerHTML = pageItems.map((post) => {
+          const thumb = isImageValue(post.emoji)
+            ? `<img src="${escapeHtml(post.emoji)}" alt="" style="width:2.5rem;height:2.5rem;border-radius:0.4rem;object-fit:cover;" />`
+            : `<div style="width:2.5rem;height:2.5rem;border-radius:0.4rem;background:#fef3e8;display:flex;align-items:center;justify-content:center;font-size:1.25rem;">${post.emoji || "📝"}</div>`;
+
+          const statusBadge = post.published
+            ? `<span class="badge badge-green">Hiện</span>`
+            : `<span class="badge badge-gray">Ẩn</span>`;
+
+          const actions = editable ? `
+            <button class="icon-btn" data-action="toggle" data-id="${escapeHtml(post.id)}" title="${post.published ? "Ẩn bài" : "Hiện bài"}">${post.published ? "⏸" : "▶"}</button>
+            <a class="icon-btn" href="bai-viet-form.html?id=${encodeURIComponent(post.id)}" title="Sửa" style="text-decoration:none;">✏️</a>
+            <button class="icon-btn" data-action="delete" data-id="${escapeHtml(post.id)}" title="Xóa">🗑️</button>
+          ` : `<span class="text-gray-300 text-xs">—</span>`;
+
+          return `<tr>
+            <td class="hidden sm:table-cell">${thumb}</td>
+            <td>
+              <div class="font-medium text-gray-700">${escapeHtml(post.title)}</div>
+              ${post.tag ? `<span class="badge badge-blue">${escapeHtml(post.tag)}</span>` : ""}
+            </td>
+            <td class="hidden md:table-cell">👁 ${escapeHtml(post.views)}</td>
+            <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(post.date)}</td>
+            <td class="hidden sm:table-cell">${statusBadge}</td>
+            <td><div class="flex gap-1">${actions}</div></td>
+          </tr>`;
+        }).join("");
+
+        tbody.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            const post = db.posts.getById(id);
+            if (!post) return;
+            db.posts.update(id, { published: !post.published });
+            render();
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            if (!confirm("Xóa bài viết này?")) return;
+            db.posts.remove(id);
+            render();
+          });
+        });
+      }
+
+      renderPagination(document.getElementById("pagination"), currentPage, total, (page) => {
+        currentPage = page;
+        render();
+      });
+    }
+  </script>
+</body>
+</html>

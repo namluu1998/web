@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cài đặt | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">⚙️ Cài đặt</h1>
+      <button id="btn-save" class="btn-admin">💾 Lưu thay đổi</button>
+    </header>
+
+    <div class="admin-content">
+      <div class="flex flex-wrap gap-2 mb-4" id="settings-tabs"></div>
+
+      <div class="admin-card">
+        <!-- general -->
+        <div class="settings-tab space-y-4" data-tab="general">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div><label class="form-label">Tên website</label><input type="text" id="s-siteName" class="form-input" /></div>
+            <div><label class="form-label">Số điện thoại</label><input type="text" id="s-phone" class="form-input" /></div>
+            <div><label class="form-label">Email</label><input type="email" id="s-email" class="form-input" /></div>
+            <div><label class="form-label">Địa chỉ</label><input type="text" id="s-address" class="form-input" /></div>
+            <div><label class="form-label">Giờ mở cửa</label><input type="text" id="s-hours" class="form-input" /></div>
+            <div><label class="form-label">Link bản đồ (Google Maps)</label><input type="text" id="s-mapEmbed" class="form-input" /></div>
+          </div>
+          <div>
+            <label class="form-label">Banner khuyến mãi</label>
+            <input type="text" id="s-promoBanner" class="form-input" />
+          </div>
+
+          <div>
+            <label class="form-label">Số liệu thống kê (hero)</label>
+            <div id="stats-list" class="space-y-2"></div>
+            <button type="button" id="btn-add-stat" class="btn-admin-secondary mt-2">+ Thêm số liệu</button>
+          </div>
+        </div>
+
+        <!-- hero -->
+        <div class="settings-tab space-y-4 hidden" data-tab="hero">
+          <div><label class="form-label">Tagline</label><input type="text" id="s-tagline" class="form-input" /></div>
+          <div><label class="form-label">Tiêu đề Hero</label><input type="text" id="s-heroTitle" class="form-input" /></div>
+          <div><label class="form-label">Từ nổi bật trong tiêu đề</label><input type="text" id="s-heroHighlight" class="form-input" /></div>
+          <div><label class="form-label">Mô tả Hero</label><textarea id="s-heroDesc" class="form-textarea" rows="3"></textarea></div>
+        </div>
+
+        <!-- images -->
+        <div class="settings-tab space-y-6 hidden" data-tab="images">
+          <div>
+            <label class="form-label">Logo</label>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="s-logoImage" class="form-input" placeholder="URL ảnh hoặc để trống" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="s-logoImage-file" accept="image/*" class="hidden" />
+              </label>
+            </div>
+            <div id="s-logoImage-upload-status" style="font-size:0.78rem;min-height:1.1em;margin-bottom:0.25rem;"></div>
+            <div id="s-logoImage-preview"></div>
+          </div>
+          <div>
+            <label class="form-label">Ảnh giới thiệu</label>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="s-introImage" class="form-input" placeholder="URL ảnh hoặc để trống" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="s-introImage-file" accept="image/*" class="hidden" />
+              </label>
+            </div>
+            <div id="s-introImage-upload-status" style="font-size:0.78rem;min-height:1.1em;margin-bottom:0.25rem;"></div>
+            <div id="s-introImage-preview"></div>
+          </div>
+          <div>
+            <label class="form-label">Ảnh chia sẻ mạng xã hội (OG Image)</label>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="s-ogImage" class="form-input" placeholder="https://bunquayphuquoc.com/uploads/ten-anh.jpg" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="s-ogImage-file" accept="image/*" class="hidden" />
+              </label>
+            </div>
+            <div id="s-ogImage-upload-status" style="font-size:0.78rem;min-height:1.1em;margin-bottom:0.25rem;"></div>
+            <div id="s-ogImage-preview"></div>
+            <p class="text-xs text-gray-400 mt-1">Nhập URL <em>hoặc</em> tải lên trực tiếp (file &lt; 5MB). Khuyến nghị: <strong>1200×630px</strong>.</p>
+          </div>
+
+          <div>
+            <label class="form-label">🖼️ Góc Ảnh Quán (Thư viện ảnh trang chủ)</label>
+            <p class="text-xs text-gray-400">Quản lý ảnh hiển thị ở mục "Góc Ảnh Quán" trên trang chủ tại trang riêng <a href="anh.html" style="color:#e07b39;font-weight:600;">🖼️ Góc Ảnh Quán</a> trong menu bên trái.</p>
+          </div>
+        </div>
+
+        <!-- faq -->
+        <div class="settings-tab hidden" data-tab="faq">
+          <div id="faq-list" class="space-y-3"></div>
+          <button type="button" id="btn-add-faq" class="btn-admin-secondary mt-3">+ Thêm câu hỏi</button>
+          <div class="mt-4">
+            <button type="button" id="btn-save-faq" class="btn-admin">💾 Lưu FAQ</button>
+          </div>
+        </div>
+
+        <!-- footer -->
+        <div class="settings-tab space-y-4 hidden" data-tab="footer">
+          <div><label class="form-label">Slogan footer</label><textarea id="s-footerTagline" class="form-textarea" rows="3"></textarea></div>
+        </div>
+
+        <!-- social -->
+        <div class="settings-tab space-y-4 hidden" data-tab="social">
+          <div><label class="form-label">Facebook</label><input type="url" id="s-facebook" class="form-input" /></div>
+          <div><label class="form-label">Instagram</label><input type="url" id="s-instagram" class="form-input" /></div>
+          <div><label class="form-label">TikTok</label><input type="url" id="s-tiktok" class="form-input" /></div>
+          <div><label class="form-label">YouTube</label><input type="url" id="s-youtube" class="form-input" /></div>
+        </div>
+
+        <!-- notify -->
+        <div class="settings-tab space-y-4 hidden" data-tab="notify">
+          <div>
+            <label class="form-label">Webhook báo đặt bàn (Zalo)</label>
+            <input type="url" id="s-zaloWebhookUrl" class="form-input" placeholder="https://hook.example.com/..." />
+            <p class="text-xs text-gray-400 mt-1">
+              Khi có khách đặt bàn mới, hệ thống sẽ tự động gửi thông tin đặt bàn (ngầm, không hiện gì cho khách)
+              tới webhook này. Bạn có thể dùng dịch vụ trung gian như Make.com, Zapier hoặc n8n để nhận webhook
+              và chuyển tiếp tin nhắn vào Zalo OA của quán. Để trống nếu chưa sử dụng.
+            </p>
+          </div>
+        </div>
+
+        <!-- password -->
+        <div class="settings-tab hidden" data-tab="password">
+          <p class="text-gray-500 text-sm">
+            Trang web tĩnh này không có máy chủ để lưu trữ mật khẩu chung. Để đổi mật khẩu đăng nhập,
+            vào mục <a href="users.html" style="color:#e07b39;">👥 Người dùng</a> và sửa tài khoản tương ứng.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const TABS = [
+      { key: "general", label: "🏪 Chung" },
+      { key: "hero", label: "🎨 Hero" },
+      { key: "images", label: "🖼️ Hình ảnh" },
+      { key: "faq", label: "❓ FAQ" },
+      { key: "footer", label: "📄 Footer" },
+      { key: "social", label: "📱 Mạng xã hội" },
+      { key: "notify", label: "🔔 Thông báo" },
+      { key: "password", label: "🔐 Mật khẩu" },
+    ];
+
+    let activeTab = "general";
+    let settings = null;
+    let faqs = [];
+    let currentUser = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("cai-dat.html");
+      if (!currentUser) return;
+
+      if (currentUser.role !== "admin") {
+        document.querySelector(".admin-content").innerHTML = `<div class="admin-card text-gray-400">Bạn không có quyền truy cập trang cài đặt.</div>`;
+        return;
+      }
+
+      settings = db.settings.get();
+      faqs = db.faqs.getAll();
+
+      renderTabs();
+      fillForm();
+      renderStats();
+      renderFaqs();
+
+      document.getElementById("btn-save").addEventListener("click", saveSettings);
+      document.getElementById("btn-save-faq").addEventListener("click", saveFaqs);
+      document.getElementById("btn-add-stat").addEventListener("click", () => {
+        settings.stats = settings.stats || [];
+        settings.stats.push({ num: "", label: "" });
+        renderStats();
+      });
+      document.getElementById("btn-add-faq").addEventListener("click", () => {
+        faqs.push({ id: uid(), q: "", a: "" });
+        renderFaqs();
+      });
+
+      document.getElementById("s-logoImage-file").addEventListener("change", (e) => uploadImageFile(e, "s-logoImage"));
+      document.getElementById("s-introImage-file").addEventListener("change", (e) => uploadImageFile(e, "s-introImage"));
+      document.getElementById("s-ogImage-file").addEventListener("change", (e) => uploadImageFile(e, "s-ogImage"));
+      document.getElementById("s-logoImage").addEventListener("input", () => updateImagePreview("s-logoImage"));
+      document.getElementById("s-introImage").addEventListener("input", () => updateImagePreview("s-introImage"));
+      document.getElementById("s-ogImage").addEventListener("input", () => updateImagePreview("s-ogImage"));
+      updateImagePreview("s-logoImage");
+      updateImagePreview("s-introImage");
+      updateImagePreview("s-ogImage");
+    });
+
+    function renderTabs() {
+      const container = document.getElementById("settings-tabs");
+      container.innerHTML = TABS.map((t) => `
+        <button type="button" class="btn-admin-secondary tab-btn" data-tab="${t.key}" style="${activeTab === t.key ? "background:#e07b39;color:#fff;border-color:#e07b39;" : ""}">${t.label}</button>
+      `).join("");
+
+      container.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeTab = btn.getAttribute("data-tab");
+          document.querySelectorAll(".settings-tab").forEach((tab) => {
+            tab.classList.toggle("hidden", tab.getAttribute("data-tab") !== activeTab);
+          });
+          document.getElementById("btn-save").classList.toggle("hidden", activeTab === "password" || activeTab === "faq");
+          renderTabs();
+        });
+      });
+
+      document.querySelectorAll(".settings-tab").forEach((tab) => {
+        tab.classList.toggle("hidden", tab.getAttribute("data-tab") !== activeTab);
+      });
+      document.getElementById("btn-save").classList.toggle("hidden", activeTab === "password" || activeTab === "faq");
+    }
+
+    function fillForm() {
+      const fields = ["siteName", "phone", "email", "address", "hours", "mapEmbed", "promoBanner",
+        "tagline", "heroTitle", "heroHighlight", "heroDesc",
+        "logoImage", "introImage", "ogImage", "footerTagline",
+        "facebook", "instagram", "tiktok", "youtube", "zaloWebhookUrl"];
+      fields.forEach((f) => {
+        const el = document.getElementById("s-" + f);
+        if (el) el.value = settings[f] || "";
+      });
+    }
+
+    function renderStats() {
+      const list = document.getElementById("stats-list");
+      const stats = settings.stats || [];
+      list.innerHTML = stats.map((s, i) => `
+        <div class="flex gap-2">
+          <input type="text" class="form-input stat-num" data-index="${i}" placeholder="VD: 15+" value="${escapeHtml(s.num || "")}" style="max-width:8rem;" />
+          <input type="text" class="form-input stat-label" data-index="${i}" placeholder="VD: Quán ngon" value="${escapeHtml(s.label || "")}" />
+          <button type="button" class="icon-btn" data-action="remove-stat" data-index="${i}">🗑️</button>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".stat-num").forEach((input) => {
+        input.addEventListener("input", () => {
+          settings.stats[parseInt(input.getAttribute("data-index"), 10)].num = input.value;
+        });
+      });
+      list.querySelectorAll(".stat-label").forEach((input) => {
+        input.addEventListener("input", () => {
+          settings.stats[parseInt(input.getAttribute("data-index"), 10)].label = input.value;
+        });
+      });
+      list.querySelectorAll('[data-action="remove-stat"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          settings.stats.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
+          renderStats();
+        });
+      });
+    }
+
+    function renderFaqs() {
+      const list = document.getElementById("faq-list");
+      list.innerHTML = faqs.map((f, i) => `
+        <div class="border rounded-lg p-3 space-y-2" style="border-color:#e5e7eb;">
+          <div class="flex gap-2 items-start">
+            <div class="flex-1 space-y-2">
+              <input type="text" class="form-input faq-q" data-index="${i}" placeholder="Câu hỏi" value="${escapeHtml(f.q || "")}" />
+              <textarea class="form-textarea faq-a" data-index="${i}" rows="2" placeholder="Câu trả lời">${escapeHtml(f.a || "")}</textarea>
+            </div>
+            <div class="flex flex-col gap-1">
+              <button type="button" class="icon-btn" data-action="move-up" data-index="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
+              <button type="button" class="icon-btn" data-action="move-down" data-index="${i}" ${i === faqs.length - 1 ? "disabled" : ""}>↓</button>
+              <button type="button" class="icon-btn" data-action="remove-faq" data-index="${i}">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".faq-q").forEach((input) => {
+        input.addEventListener("input", () => {
+          faqs[parseInt(input.getAttribute("data-index"), 10)].q = input.value;
+        });
+      });
+      list.querySelectorAll(".faq-a").forEach((textarea) => {
+        textarea.addEventListener("input", () => {
+          faqs[parseInt(textarea.getAttribute("data-index"), 10)].a = textarea.value;
+        });
+      });
+      list.querySelectorAll('[data-action="move-up"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = parseInt(btn.getAttribute("data-index"), 10);
+          [faqs[i - 1], faqs[i]] = [faqs[i], faqs[i - 1]];
+          renderFaqs();
+        });
+      });
+      list.querySelectorAll('[data-action="move-down"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = parseInt(btn.getAttribute("data-index"), 10);
+          [faqs[i + 1], faqs[i]] = [faqs[i], faqs[i + 1]];
+          renderFaqs();
+        });
+      });
+      list.querySelectorAll('[data-action="remove-faq"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          faqs.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
+          renderFaqs();
+        });
+      });
+    }
+
+    async function uploadImageFile(e, fieldId) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById(fieldId + "-upload-status");
+      if (status) { status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280"; }
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+        document.getElementById(fieldId).value = data.url;
+        updateImagePreview(fieldId);
+        if (status) { status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a"; }
+        showToast("Upload thành công!", "success");
+      } catch (err) {
+        if (status) { status.textContent = "❌ " + err.message; status.style.color = "#dc2626"; }
+        showToast("❌ " + err.message, "error");
+      }
+      e.target.value = "";
+    }
+
+    function updateImagePreview(fieldId) {
+      const val = document.getElementById(fieldId).value.trim();
+      const preview = document.getElementById(fieldId + "-preview");
+      const size = fieldId === "s-introImage" ? "width:100%; max-width:16rem; height:auto;"
+                 : fieldId === "s-ogImage"    ? "width:100%; max-width:22rem; height:auto; aspect-ratio:1200/630; object-fit:cover;"
+                 : "width:5rem; height:5rem;";
+      if (isImageValue(val)) {
+        preview.innerHTML = `<img src="${escapeHtml(val)}" alt="" style="${size} object-fit:cover; border-radius:0.4rem;" />`;
+      } else {
+        preview.innerHTML = "";
+      }
+    }
+
+    function saveSettings() {
+      const fields = ["siteName", "phone", "email", "address", "hours", "mapEmbed", "promoBanner",
+        "tagline", "heroTitle", "heroHighlight", "heroDesc",
+        "logoImage", "introImage", "ogImage", "footerTagline",
+        "facebook", "instagram", "tiktok", "youtube", "zaloWebhookUrl"];
+      fields.forEach((f) => {
+        const el = document.getElementById("s-" + f);
+        if (el) settings[f] = el.value;
+      });
+
+      db.settings.update(settings);
+      settings = db.settings.get();
+
+      const btn = document.getElementById("btn-save");
+      const original = btn.textContent;
+      btn.textContent = "✅ Đã lưu!";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+      showToast("Đã lưu cài đặt", "success");
+    }
+
+    function saveFaqs() {
+      const existing = db.faqs.getAll();
+      existing.forEach((f) => {
+        if (!faqs.find((nf) => nf.id === f.id)) db.faqs.remove(f.id);
+      });
+      faqs.forEach((f) => {
+        if (existing.find((ef) => ef.id === f.id)) {
+          db.faqs.update(f.id, { q: f.q, a: f.a });
+        } else {
+          const created = db.faqs.create({ q: f.q, a: f.a });
+          f.id = created.id;
+        }
+      });
+      // re-order: rewrite storage in faqs[] order
+      writeJSON(DB_KEYS.faqs, faqs);
+      faqs = db.faqs.getAll();
+      showToast("Đã lưu FAQ", "success");
+    }
+  </script>
+</body>
+</html>

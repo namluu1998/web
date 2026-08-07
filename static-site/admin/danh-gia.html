@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đánh giá | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;">⭐ Đánh giá</h1>
+      <button id="btn-add" class="btn-admin">+ Thêm đánh giá</button>
+    </header>
+
+    <div class="admin-content space-y-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="admin-card">
+          <div class="text-2xl mb-1">⭐</div>
+          <div class="flex items-center gap-2">
+            <input type="number" id="f-rating" class="form-input" min="0" max="5" step="0.1" style="max-width:6rem;" />
+            <span class="text-sm text-gray-500">/ 5</span>
+          </div>
+          <div class="text-sm text-gray-500 mt-1">Điểm trung bình</div>
+        </div>
+        <div class="admin-card">
+          <div class="text-2xl mb-1">🗳️</div>
+          <input type="number" id="f-total-ratings" class="form-input" min="0" style="max-width:8rem;" />
+          <div class="text-sm text-gray-500 mt-1">Tổng lượt đánh giá</div>
+        </div>
+        <div class="admin-card">
+          <div class="text-2xl mb-1">📝</div>
+          <div class="text-2xl font-extrabold" style="color:#3498db;" id="review-count">0</div>
+          <div class="text-sm text-gray-500 mt-1">Số đánh giá hiển thị</div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <button id="btn-save-stats" class="btn-admin">💾 Lưu điểm đánh giá</button>
+      </div>
+
+      <div class="grid gap-4" id="content-grid">
+        <div class="admin-card" id="list-panel">
+          <div class="mb-4">
+            <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên, nội dung, ngày..." style="max-width:24rem;" />
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Tên</th>
+                  <th>Sao</th>
+                  <th class="hidden md:table-cell">Ngày</th>
+                  <th>Nội dung</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="reviews-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="empty-state" class="hidden text-center text-gray-400 py-10">
+            <div class="text-4xl mb-2">⭐</div>
+            <p>Chưa có đánh giá nào.</p>
+          </div>
+
+          <div class="pagination" id="pagination"></div>
+        </div>
+
+        <div class="admin-card hidden" id="form-panel">
+          <h2 class="font-bold mb-3" style="color:#1a5276;" id="form-heading">Thêm đánh giá</h2>
+          <form id="review-form" class="space-y-4">
+            <div>
+              <label class="form-label">Tên người đánh giá *</label>
+              <input type="text" id="r-name" class="form-input" required />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="form-label">Số sao</label>
+                <select id="r-stars" class="form-select">
+                  <option value="5">5 ⭐⭐⭐⭐⭐</option>
+                  <option value="4">4 ⭐⭐⭐⭐</option>
+                  <option value="3">3 ⭐⭐⭐</option>
+                  <option value="2">2 ⭐⭐</option>
+                  <option value="1">1 ⭐</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Ngày</label>
+                <div class="flex gap-2">
+                  <input type="text" id="r-date" class="form-input" placeholder="VD: 2 tuần trước" />
+                  <input type="date" id="r-date-picker" class="form-input" style="max-width:9.5rem;" title="Chọn ngày từ lịch" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Nội dung</label>
+              <textarea id="r-text" class="form-textarea" rows="4"></textarea>
+            </div>
+
+            <div>
+              <label class="form-label">Ảnh đại diện (tùy chọn)</label>
+              <div class="space-y-2">
+                <div id="r-photo-preview" class="hidden">
+                  <img id="r-photo-preview-img" src="" alt="" style="width:5rem;height:5rem;object-fit:cover;border-radius:9999px;" />
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" id="r-photo" class="form-input" placeholder="https://..." />
+                  <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                    📁 Tải lên<input type="file" id="r-photo-file" accept="image/*" class="hidden" />
+                  </label>
+                </div>
+                <div id="r-photo-upload-status" style="font-size:0.78rem;min-height:1.1em;"></div>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button type="submit" class="btn-admin">💾 Lưu</button>
+              <button type="button" id="btn-cancel" class="btn-admin-secondary">Hủy</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let searchQuery = "";
+    let currentUser = null;
+    let editingIndex = null;
+    let reviewsData = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      currentUser = initAdminLayout("danh-gia.html");
+      if (!currentUser) return;
+
+      const editable = canEdit(currentUser.role);
+      if (!editable) {
+        document.getElementById("btn-add").classList.add("hidden");
+        document.getElementById("btn-save-stats").classList.add("hidden");
+        document.getElementById("f-rating").disabled = true;
+        document.getElementById("f-total-ratings").disabled = true;
+      }
+
+      reviewsData = db.reviews.get();
+
+      document.getElementById("f-rating").value = reviewsData.rating ?? 0;
+      document.getElementById("f-total-ratings").value = reviewsData.totalRatings ?? 0;
+
+      document.getElementById("btn-save-stats").addEventListener("click", () => {
+        reviewsData.rating = parseFloat(document.getElementById("f-rating").value) || 0;
+        reviewsData.totalRatings = parseInt(document.getElementById("f-total-ratings").value, 10) || 0;
+        db.reviews.set(reviewsData);
+        showToast("Đã lưu điểm đánh giá", "success");
+      });
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        currentPage = 1;
+        render();
+      });
+
+      document.getElementById("btn-add").addEventListener("click", () => openForm(null));
+      document.getElementById("btn-cancel").addEventListener("click", closeForm);
+
+      document.getElementById("r-date-picker").addEventListener("change", (e) => {
+        const value = e.target.value;
+        if (!value) return;
+        const [y, m, d] = value.split("-");
+        document.getElementById("r-date").value = `${d}/${m}/${y}`;
+      });
+
+      document.getElementById("r-photo-file").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const status = document.getElementById("r-photo-upload-status");
+        status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280";
+        try {
+          const fd = new FormData(); fd.append("file", file);
+          const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+          document.getElementById("r-photo").value = data.url;
+          updatePhotoPreview(data.url);
+          status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a";
+        } catch (err) {
+          status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
+        }
+        e.target.value = "";
+      });
+
+      document.getElementById("r-photo").addEventListener("input", (e) => {
+        updatePhotoPreview(e.target.value.trim());
+      });
+
+      document.getElementById("review-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("r-name").value.trim();
+        if (!name) {
+          alert("Vui lòng nhập tên người đánh giá.");
+          return;
+        }
+        const review = {
+          name,
+          stars: parseInt(document.getElementById("r-stars").value, 10),
+          date: document.getElementById("r-date").value.trim(),
+          text: document.getElementById("r-text").value.trim(),
+        };
+        const photo = document.getElementById("r-photo").value.trim();
+        if (photo) review.profilePhoto = photo;
+
+        if (editingIndex !== null) {
+          reviewsData.reviews[editingIndex] = review;
+        } else {
+          reviewsData.reviews.unshift(review);
+        }
+        db.reviews.set(reviewsData);
+        showToast("Đã lưu đánh giá", "success");
+        closeForm();
+        render();
+      });
+
+      render();
+    });
+
+    function openForm(index) {
+      editingIndex = index;
+      const heading = document.getElementById("form-heading");
+      const review = index !== null ? reviewsData.reviews[index] : { name: "", stars: 5, date: "", text: "", profilePhoto: "" };
+
+      document.getElementById("r-name").value = review.name || "";
+      document.getElementById("r-stars").value = String(review.stars || 5);
+      document.getElementById("r-date").value = review.date || "";
+      document.getElementById("r-date-picker").value = "";
+      document.getElementById("r-text").value = review.text || "";
+      document.getElementById("r-photo").value = review.profilePhoto || "";
+      document.getElementById("r-photo-file").value = "";
+      updatePhotoPreview(review.profilePhoto || "");
+
+      heading.textContent = index !== null ? "Sửa đánh giá" : "Thêm đánh giá";
+
+      document.getElementById("content-grid").classList.add("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.remove("hidden");
+    }
+
+    function updatePhotoPreview(src) {
+      const wrap = document.getElementById("r-photo-preview");
+      const img = document.getElementById("r-photo-preview-img");
+      if (src && isImageValue(src)) {
+        img.src = src;
+        wrap.classList.remove("hidden");
+      } else {
+        img.src = "";
+        wrap.classList.add("hidden");
+      }
+    }
+
+    function closeForm() {
+      editingIndex = null;
+      document.getElementById("content-grid").classList.remove("lg:grid-cols-2");
+      document.getElementById("form-panel").classList.add("hidden");
+    }
+
+    function render() {
+      const all = reviewsData.reviews || [];
+      document.getElementById("review-count").textContent = all.length;
+
+      const filtered = all
+        .map((r, i) => ({ ...r, _index: i }))
+        .filter((r) => matchesSearch(searchQuery, r.name, r.text, r.date, r.stars));
+
+      const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > total) currentPage = total;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+      const tbody = document.getElementById("reviews-tbody");
+      const emptyState = document.getElementById("empty-state");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+        const editable = canEdit(currentUser.role);
+
+        tbody.innerHTML = pageItems.map((r) => {
+          const stars = "⭐".repeat(Math.max(0, Math.min(5, r.stars || 0)));
+          const actions = editable ? `
+            <button class="icon-btn" data-action="edit" data-index="${r._index}" title="Sửa">✏️</button>
+            <button class="icon-btn" data-action="delete" data-index="${r._index}" title="Xóa">🗑️</button>
+          ` : `<span class="text-gray-300 text-xs">—</span>`;
+
+          return `<tr>
+            <td class="font-medium text-gray-700">${escapeHtml(r.name)}</td>
+            <td class="whitespace-nowrap">${stars}</td>
+            <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(r.date || "")}</td>
+            <td class="text-gray-500" style="max-width:24rem;">${escapeHtml((r.text || "").slice(0, 120))}${(r.text || "").length > 120 ? "…" : ""}</td>
+            <td><div class="flex gap-1">${actions}</div></td>
+          </tr>`;
+        }).join("");
+
+        tbody.querySelectorAll('[data-action="edit"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            openForm(parseInt(btn.getAttribute("data-index"), 10));
+          });
+        });
+
+        tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (!confirm("Xóa đánh giá này?")) return;
+            const index = parseInt(btn.getAttribute("data-index"), 10);
+            reviewsData.reviews.splice(index, 1);
+            db.reviews.set(reviewsData);
+            render();
+          });
+        });
+      }
+
+      renderPagination(document.getElementById("pagination"), currentPage, total, (page) => {
+        currentPage = page;
+        render();
+      });
+    }
+  </script>
+</body>
+</html>

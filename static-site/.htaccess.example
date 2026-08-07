@@ -1,0 +1,101 @@
+# Sanitized template of the production .htaccess.
+# The real file (static-site/.htaccess) is gitignored and kept only on the local machine
+# because it embeds the cPanel account name in the log path below.
+# To use: copy to `.htaccess` and replace YOUR_CPANEL_USER with the real cPanel username.
+
+# BEGIN cPanel-generated php ini directives, do not edit
+# Manual editing of this file may result in unexpected behavior.
+# To make changes to this file, use the cPanel MultiPHP INI Editor (Home >> Software >> MultiPHP INI Editor)
+# For more information, read our documentation (https://go.cpanel.net/EA4ModifyINI)
+<IfModule php5_module>
+   php_value error_log "/home/YOUR_CPANEL_USER/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule lsapi_module>
+   php_value error_log "/home/YOUR_CPANEL_USER/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+# END cPanel-generated php ini directives, do not edit
+
+# Serve the site's own branded page for 404s instead of the
+# server's default error page.
+ErrorDocument 404 /404.html
+
+# ---------------------------------------------------------------
+# Clean URLs: drop the .html extension from the address bar.
+# - Old *.html links get a permanent (301) redirect to the clean
+#   URL, so Google/Facebook/bookmarks settle on one canonical URL.
+# - /admin/ (internal tool, not indexed) and /uploads/ (standalone
+#   uploaded article pages) are left untouched on purpose.
+# ---------------------------------------------------------------
+# Allow Zapps.me bot webhook (User-Agent: Java/1.8.0_192) bypassed by ModSecurity
+<IfModule mod_security2.c>
+    SecRuleEngine Off
+</IfModule>
+<IfModule mod_security.c>
+    SecFilterEngine Off
+    SecFilterScanPOST Off
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Trang chi tiết bài viết phục vụ qua PHP để mỗi bài có og:image/title
+  # riêng khi share (bot Facebook/Zalo không chạy JS). Giữ URL sạch
+  # /bai-viet?id=... ; query string được chuyển tiếp bằng [QSA].
+  RewriteRule ^bai-viet/?$ bai-viet.php [L,QSA]
+
+  # Sitemap động: /sitemap.xml sinh từ DB (tự có bài viết mới).
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
+  # Trang chi tiết từng món: /mon?id=... chạy qua mon.php (OG + schema riêng).
+  RewriteRule ^mon/?$ mon.php [L,QSA]
+
+  # /index.html -> /
+  RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.html[\s?] [NC]
+  RewriteRule ^ /? [R=301,L]
+
+  # /anything.html -> /anything (skip /admin/ and /uploads/)
+  RewriteCond %{REQUEST_URI} !^/admin/
+  RewriteCond %{REQUEST_URI} !^/uploads/
+  RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^.]+)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L]
+
+  # Serve /anything internally as anything.html (URL bar stays clean)
+  RewriteCond %{REQUEST_URI} !^/admin/
+  RewriteCond %{REQUEST_URI} !^/uploads/
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^([^.]+)$ $1.html [L]
+</IfModule>
+
+# ---------------------------------------------------------------
+# Block public access to deploy artifacts / backups that should
+# never be served (patch zips, DB dumps, backups, env files).
+# These sometimes get uploaded alongside the site during manual
+# cPanel deploys and must never be downloadable.
+# ---------------------------------------------------------------
+<FilesMatch "\.(zip|sql|sql\.gz|bak|backup|tar|gz|env)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# ---------------------------------------------------------------
+# Chặn các file nội bộ chứa dữ liệu nhạy cảm (không được tải công khai):
+# - login_attempts.json : IP + số lần đăng nhập sai (chống dò mật khẩu)
+# - zalo_*.log          : log webhook/tin nhắn Zalo
+# ---------------------------------------------------------------
+<FilesMatch "^(login_attempts\.json|zalo_.*\.log)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng nhập quản trị | Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="text-center mb-6">
+        <div id="login-logo" class="mb-3 flex justify-center">
+          <span class="text-5xl">🦐</span>
+        </div>
+        <h1 class="text-xl font-bold" id="login-site-name" style="color:#1a5276;">Đăng nhập quản trị</h1>
+        <p class="text-sm text-gray-500 mt-1" id="login-tagline">Đặc Sản Phú Quốc</p>
+      </div>
+
+      <form id="login-form">
+        <div class="mb-4">
+          <label class="form-label" for="username">Tên đăng nhập</label>
+          <input type="text" id="username" name="username" class="form-input" autocomplete="username" required />
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="password">Mật khẩu</label>
+          <input type="password" id="password" name="password" class="form-input" autocomplete="current-password" required />
+        </div>
+
+        <div id="login-error" class="hidden mb-4 text-sm rounded-lg px-3 py-2" style="background:#fef2f2;color:#b91c1c;"></div>
+
+        <button type="submit" id="login-submit" class="btn-admin" style="width:100%;">Đăng nhập</button>
+      </form>
+
+      <p class="text-center text-xs text-gray-400 mt-6">Liên hệ quản trị viên nếu quên mật khẩu.</p>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Already logged in? go straight to dashboard.
+      if (auth.getCurrentUser()) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const s = db.settings.get();
+      if (s.siteName) {
+        document.getElementById("login-site-name").textContent = "Đăng nhập quản trị";
+        document.getElementById("login-tagline").textContent = s.siteName;
+      }
+      if (s.logoImage) {
+        document.getElementById("login-logo").innerHTML =
+          `<img src="${escapeHtml(s.logoImage)}" alt="Logo" style="width:72px;height:72px;border-radius:9999px;object-fit:cover;border:none;outline:none;" />`;
+      }
+
+      const form = document.getElementById("login-form");
+      const errorBox = document.getElementById("login-error");
+      const submitBtn = document.getElementById("login-submit");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Đang đăng nhập...";
+        errorBox.classList.add("hidden");
+
+        const result = await auth.login(username, password);
+        if (result && result.id) {
+          window.location.href = "index.html";
+        } else {
+          errorBox.textContent = (result && result.error) || "Đăng nhập thất bại. Vui lòng kiểm tra tên đăng nhập và mật khẩu.";
+          errorBox.classList.remove("hidden");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Đăng nhập";
+        }
+      });
+    });
+  </script>
+</body>
+</html>

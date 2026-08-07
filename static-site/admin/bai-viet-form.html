@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">Viết bài mới | Quản trị Đặc Sản Phú Quốc</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <h1 class="text-lg font-bold" style="color:#1a5276;" id="form-heading">✏️ Viết bài mới</h1>
+      <a href="bai-viet.html" class="btn-admin-secondary">← Quay lại</a>
+    </header>
+
+    <div class="admin-content">
+      <form id="post-form" class="admin-card grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-4">
+          <div>
+            <label class="form-label">Tiêu đề *</label>
+            <input type="text" id="f-title" class="form-input" required />
+          </div>
+
+          <div>
+            <label class="form-label">Tóm tắt</label>
+            <textarea id="f-excerpt" class="form-textarea" rows="2"></textarea>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <label class="form-label">Nội dung</label>
+              <label style="cursor:pointer;white-space:nowrap;padding:0.35rem 0.7rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.78rem;display:flex;align-items:center;gap:0.3rem;">
+                📄 Tải file HTML<input type="file" id="f-content-file" accept=".html,.htm,text/html" class="hidden" />
+              </label>
+            </div>
+            <textarea id="f-content" class="form-textarea" rows="16" style="font-family:monospace;font-size:0.85rem;"></textarea>
+            <p class="text-xs text-gray-400 mt-1">Mỗi đoạn cách nhau bằng dòng trống. Dòng VIẾT HOA = tiêu đề lớn. Dòng bắt đầu bằng "- " hoặc "• " = danh sách. Dòng "1. " = danh sách số. Ảnh: <code>![chú thích](url)</code></p>
+            <details class="mt-1.5 text-xs text-gray-400">
+              <summary class="cursor-pointer select-none hover:text-gray-600">Cú pháp nâng cao (mục lục, FAQ, khung gợi ý, CTA, bảng giá...)</summary>
+              <ul class="mt-2 space-y-1.5 pl-3">
+                <li><code>[toc]</code> — chèn mục lục tự động từ các dòng VIẾT HOA trong bài.</li>
+                <li><code>:::tip</code> ... <code>:::</code> — khung "mẹo hay" nổi bật.</li>
+                <li><code>:::faq</code> ... <code>:::</code> — mỗi câu hỏi 1 dòng <code>Q: ...</code>, câu trả lời dòng <code>A: ...</code> ngay sau.</li>
+                <li><code>:::cta</code> ... <code>:::</code> — dòng đầu là tiêu đề, dòng giữa là mô tả, dòng <code>[Tên nút](link)</code> là nút bấm.</li>
+                <li><code>:::grid</code> ... <code>:::</code> — mỗi dòng <code>Nhãn | Giá trị</code> thành 1 ô trong lưới.</li>
+                <li>Dán nguyên 1 đoạn mã HTML (bắt đầu bằng <code>&lt;</code>) cũng được — hệ thống sẽ tự lọc bỏ phần nguy hiểm (script, style...) trước khi hiển thị.</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="form-label">Ảnh / biểu tượng đại diện</label>
+            <div id="emoji-grid" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="f-emoji" class="form-input" placeholder="Emoji hoặc URL ảnh" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="f-cover-file" accept="image/*" class="hidden" />
+              </label>
+            </div>
+            <div id="cover-upload-status" style="font-size:0.78rem;min-height:1.1em;"></div>
+            <div id="cover-preview" class="mt-2"></div>
+          </div>
+
+          <div>
+            <label class="form-label">Trang HTML độc lập (tuỳ chọn)</label>
+            <p class="text-xs text-gray-400 mb-2">Tải lên 1 file .html hoàn chỉnh (có CSS/hình vẽ riêng) — nội dung file sẽ hiển thị y nguyên bản gốc bên trong khung bài viết, vẫn giữ menu/footer của site như bài viết bình thường. Để trống nếu dùng ô "Nội dung" phía trên.</p>
+            <input type="hidden" id="f-html-file-url" />
+            <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:inline-flex;align-items:center;gap:0.3rem;">
+              🔗 Tải lên trang độc lập<input type="file" id="f-html-page-file" accept=".html,.htm,text/html" class="hidden" />
+            </label>
+            <div id="html-page-status" style="font-size:0.78rem;min-height:1.1em;margin-top:0.4rem;"></div>
+            <div id="html-page-preview" class="mt-1"></div>
+          </div>
+
+          <div>
+            <label class="form-label">Danh mục (tag)</label>
+            <select id="f-tag" class="form-select"></select>
+          </div>
+
+          <div>
+            <label class="form-label">Trạng thái</label>
+            <select id="f-published" class="form-select">
+              <option value="true">Hiển thị</option>
+              <option value="false">Ẩn bài viết</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="f-featured" class="w-4 h-4" />
+            <label for="f-featured" class="text-sm text-gray-700">Bài viết nổi bật</label>
+          </div>
+
+          <div id="views-field" class="hidden">
+            <label class="form-label">Lượt xem</label>
+            <input type="text" id="f-views" class="form-input" />
+          </div>
+
+          <button type="submit" class="btn-admin" style="width:100%;">💾 Lưu bài viết</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/data-posts.js"></script>
+  <script src="../assets/js/data-reservations.js"></script>
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script>
+    const TAGS = ["Đặc sản", "Hải sản", "Gia vị", "Quà tặng", "Du lịch", "Ẩm thực"];
+    const EMOJIS = ["📝", "🍜", "🦐", "🫙", "🥜", "🦀", "🦑", "🐟", "🥗", "🍵", "🗺️", "📸"];
+
+    let editingId = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const user = initAdminLayout("bai-viet.html");
+      if (!user) return;
+
+      if (!canEdit(user.role)) {
+        document.getElementById("post-form").innerHTML = `<p class="text-gray-400 lg:col-span-3">Bạn không có quyền chỉnh sửa bài viết.</p>`;
+        return;
+      }
+
+      // Tag select
+      const tagSelect = document.getElementById("f-tag");
+      tagSelect.innerHTML = `<option value="">— Không —</option>` + TAGS.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+
+      // Emoji grid
+      const emojiGrid = document.getElementById("emoji-grid");
+      emojiGrid.innerHTML = EMOJIS.map((e) => `<button type="button" class="icon-btn emoji-option" data-emoji="${e}" style="font-size:1.25rem;">${e}</button>`).join("");
+      emojiGrid.querySelectorAll(".emoji-option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById("f-emoji").value = btn.getAttribute("data-emoji");
+          updateCoverPreview();
+        });
+      });
+
+      document.getElementById("f-emoji").addEventListener("input", updateCoverPreview);
+
+      document.getElementById("f-cover-file").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const status = document.getElementById("cover-upload-status");
+        status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280";
+        try {
+          const fd = new FormData(); fd.append("file", file);
+          const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+          document.getElementById("f-emoji").value = data.url;
+          updateCoverPreview();
+          status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a";
+        } catch (err) {
+          status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
+        }
+        e.target.value = "";
+      });
+
+      document.getElementById("f-content-file").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById("f-content").value = String(reader.result || "");
+          showToast("Đã nạp nội dung từ file " + file.name, "success");
+        };
+        reader.onerror = () => alert("Không đọc được file. Hãy thử lại.");
+        reader.readAsText(file, "UTF-8");
+        e.target.value = "";
+      });
+
+      document.getElementById("f-html-page-file").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const status = document.getElementById("html-page-status");
+        status.textContent = "⏳ Đang tải lên..."; status.style.color = "#6b7280";
+        try {
+          const fd = new FormData(); fd.append("file", file);
+          const res = await fetch("/api.php?action=upload_html", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Tải lên thất bại");
+          document.getElementById("f-html-file-url").value = data.url;
+          renderHtmlPagePreview();
+          status.textContent = "✅ Đã liên kết trang độc lập!"; status.style.color = "#16a34a";
+        } catch (err) {
+          status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
+        }
+        e.target.value = "";
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      editingId = params.get("id");
+
+      if (editingId) {
+        const post = db.posts.getById(editingId);
+        if (!post) {
+          alert("Không tìm thấy bài viết.");
+          window.location.href = "bai-viet.html";
+          return;
+        }
+        document.getElementById("page-title").textContent = "Sửa bài viết | Quản trị Đặc Sản Phú Quốc";
+        document.getElementById("form-heading").textContent = "✏️ Sửa bài viết";
+
+        document.getElementById("f-title").value = post.title || "";
+        document.getElementById("f-excerpt").value = post.excerpt || "";
+        document.getElementById("f-content").value = post.content || "";
+        document.getElementById("f-emoji").value = post.emoji || "";
+        document.getElementById("f-html-file-url").value = post.htmlFileUrl || "";
+        document.getElementById("f-tag").value = post.tag || "";
+        document.getElementById("f-published").value = post.published ? "true" : "false";
+        document.getElementById("f-featured").checked = !!post.featured;
+
+        document.getElementById("views-field").classList.remove("hidden");
+        document.getElementById("f-views").value = (post.views || "0").toLocaleString
+          ? String(post.views || "0")
+          : String(post.views || "0");
+
+        updateCoverPreview();
+        renderHtmlPagePreview();
+      } else {
+        document.getElementById("f-emoji").value = "📝";
+        document.getElementById("f-published").value = "true";
+        updateCoverPreview();
+        renderHtmlPagePreview();
+      }
+
+      document.getElementById("post-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const title = document.getElementById("f-title").value.trim();
+        if (!title) {
+          alert("Vui lòng nhập tiêu đề.");
+          return;
+        }
+
+        const data = {
+          title,
+          excerpt: document.getElementById("f-excerpt").value.trim(),
+          content: document.getElementById("f-content").value,
+          emoji: document.getElementById("f-emoji").value.trim() || "📝",
+          htmlFileUrl: document.getElementById("f-html-file-url").value.trim(),
+          tag: document.getElementById("f-tag").value,
+          tags: document.getElementById("f-tag").value ? [document.getElementById("f-tag").value] : [],
+          published: document.getElementById("f-published").value === "true",
+          featured: document.getElementById("f-featured").checked,
+        };
+
+        if (editingId) {
+          const rawViews = document.getElementById("f-views").value.replace(/[.\s]/g, "");
+          data.views = rawViews || "0";
+          db.posts.update(editingId, data);
+        } else {
+          db.posts.create(data);
+        }
+
+        window.location.href = "bai-viet.html";
+      });
+    });
+
+    function updateCoverPreview() {
+      const val = document.getElementById("f-emoji").value.trim();
+      const preview = document.getElementById("cover-preview");
+      if (isImageValue(val)) {
+        preview.innerHTML = `<img src="${escapeHtml(val)}" alt="" style="width:100%;max-width:10rem;border-radius:0.5rem;object-fit:cover;" />`;
+      } else if (val) {
+        preview.innerHTML = `<div style="font-size:2.5rem;">${escapeHtml(val)}</div>`;
+      } else {
+        preview.innerHTML = "";
+      }
+    }
+
+    function renderHtmlPagePreview() {
+      const url = document.getElementById("f-html-file-url").value.trim();
+      const preview = document.getElementById("html-page-preview");
+      if (!url) { preview.innerHTML = ""; return; }
+      preview.innerHTML = `
+        <div class="flex items-center gap-2 text-xs">
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-blue-600 hover:underline truncate" style="max-width:14rem;">${escapeHtml(url)}</a>
+          <button type="button" id="btn-remove-html-page" class="text-red-500 hover:underline">Xoá liên kết</button>
+        </div>`;
+      document.getElementById("btn-remove-html-page").addEventListener("click", () => {
+        document.getElementById("f-html-file-url").value = "";
+        renderHtmlPagePreview();
+      });
+    }
+  </script>
+</body>
+</html>

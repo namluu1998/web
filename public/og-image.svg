@@ -1,0 +1,13 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#c4612a"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7b3f00"/>
+      <stop offset="100%" style="stop-color:#e07b39"/>
+    </linearGradient>
+  </defs>
+  <text x="600" y="270" font-family="sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle">🦐 Đặc Sản Phú Quốc</text>
+  <text x="600" y="370" font-family="sans-serif" font-size="40" fill="rgba(255,255,255,0.85)" text-anchor="middle">Hương Vị Bún Quậy Trứ Danh Đảo Ngọc</text>
+  <text x="600" y="450" font-family="sans-serif" font-size="30" fill="rgba(255,255,255,0.65)" text-anchor="middle">dacsan-phuquoc.vn</text>
+</svg>
