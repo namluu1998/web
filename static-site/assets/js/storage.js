@@ -309,13 +309,29 @@ const db = {
       return hit(_mem.menu.filter((m) => m.available)) || hit(_mem.menu);
     },
 
+    /* Tập id thuộc cùng một sản phẩm, gom theo một hoặc nhiều nhóm. */
+    ownIds(groupKeys, extraId) {
+      const keys = (groupKeys || []).filter(Boolean);
+      const own = new Set();
+      _mem.menu.forEach((m) => {
+        if (keys.indexOf(menuGroupKey(m)) !== -1) own.add(String(m.id));
+      });
+      if (extraId !== null && extraId !== undefined) own.add(String(extraId));
+      return own;
+    },
+
     /* Slug phải là duy nhất giữa các SẢN PHẨM. Các biến thể cùng nhóm
-       dùng chung slug nên không tính là trùng. */
-    uniqueSlug(desired, groupKey) {
+       dùng chung slug nên không tính là trùng.
+       `own` = mọi dòng thuộc chính sản phẩm này, tính cả nhóm CŨ lẫn
+       nhóm MỚI: lúc đổi tên nhóm, các biến thể chưa kịp cập nhật vẫn
+       mang nhóm cũ, không loại ra thì sản phẩm tự va chạm với chính nó
+       và bị thêm hậu tố -2 vô cớ. */
+    uniqueSlug(desired, own) {
       const base = slugify(desired) || "mon";
+      const mine = own instanceof Set ? own : new Set();
       let slug = base;
       let n = 2;
-      while (_mem.menu.some((m) => menuGroupKey(m) !== groupKey && menuSlug(m) === slug)) {
+      while (_mem.menu.some((m) => !mine.has(String(m.id)) && menuSlug(m) === slug)) {
         slug = base + "-" + n;
         n += 1;
       }
@@ -344,7 +360,7 @@ const db = {
         item.seoDesc = sibling.seoDesc || "";
         if (sibling.slugAliases) item.slugAliases = sibling.slugAliases.slice();
       } else {
-        item.slug = this.uniqueSlug(String(data.slug || "").trim() || menuProductName(item), groupKey);
+        item.slug = this.uniqueSlug(String(data.slug || "").trim() || menuProductName(item), this.ownIds([groupKey], item.id));
       }
       _mem.menu.push(item);
       if (_useAPI) _apiPost("menu", "create", null, item);
@@ -364,9 +380,10 @@ const db = {
          nhanh (bật/tắt "Còn hàng", sắp xếp) không làm đổi URL. */
       if (has("slug") || has("name") || has("group")) {
         const previous = menuSlug(before);
+        const own = this.ownIds([menuGroupKey(before), groupKey], id);
         next.slug = has("slug")
-          ? this.uniqueSlug(String(data.slug || "").trim() || menuProductName(next), groupKey)
-          : this.uniqueSlug(next.slug || menuProductName(next), groupKey);
+          ? this.uniqueSlug(String(data.slug || "").trim() || menuProductName(next), own)
+          : this.uniqueSlug(next.slug || menuProductName(next), own);
         if (previous && previous !== next.slug) {
           // Giữ tối đa 5 slug cũ để /mon/<slug-cũ> vẫn mở được.
           next.slugAliases = [previous]
