@@ -177,7 +177,7 @@ function ensureGalleryLightboxEl() {
     <button type="button" id="lightbox-prev" class="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-gray-700 shadow-sm hover:bg-white" aria-label="Ảnh trước">‹</button>
     <button type="button" id="lightbox-next" class="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-gray-700 shadow-sm hover:bg-white" aria-label="Ảnh sau">›</button>
     <figure class="max-h-full max-w-full flex flex-col items-center">
-      <img id="lightbox-img" src="" alt="" class="min-w-[70vw] max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl" />
+      <img id="lightbox-img" alt="" class="min-w-[70vw] max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl" />
       <video id="lightbox-video" class="min-w-[70vw] max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl hidden" controls playsinline></video>
       <figcaption id="lightbox-caption" class="mt-3 text-center text-sm font-medium text-white/90"></figcaption>
     </figure>
