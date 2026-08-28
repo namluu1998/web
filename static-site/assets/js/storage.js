@@ -25,7 +25,6 @@ function _apiGetSync(qs) {
 
 // ── Async POST (fire-and-forget, không block UI) ──────────────────
 function _apiPost(entity, action, id, body) {
-  _clearDbCache(); // vừa ghi -> bản chụp trong phiên đã cũ
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   fetch(url, {
@@ -45,7 +44,6 @@ function _apiPost(entity, action, id, body) {
 // message on non-2xx. Used by the public booking form so it can wait for the
 // server's verdict (anti-spam, duplicate slot) before telling the user.
 function _apiPostAwait(entity, action, id, body) {
-  _clearDbCache();
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   return fetch(url, {
@@ -153,59 +151,6 @@ function isVideoValue(val) {
   return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(val) || val.startsWith("data:video/");
 }
 
-// ── Site URL & slug (URL thân thiện SEO: /mon/<slug>) ─────────────
-const SITE_URL = "https://bunquayphuquoc.com";
-
-/* Bỏ dấu tiếng Việt và chuyển về kebab-case an toàn cho URL.
-   "Bún Quậy Phú Quốc" -> "bun-quay-phu-quoc" */
-function slugify(str) {
-  return String(str === null || str === undefined ? "" : str)
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d").replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
-    .replace(/-+$/g, "");
-}
-
-/* Slug công khai của 1 món: ưu tiên "Đường dẫn" admin tự đặt trong
-   phần SEO, không có thì sinh từ tên món, cuối cùng mới rơi về id.
-   Nhờ vậy các món cũ (chưa có trường slug trong DB) vẫn có URL đẹp
-   mà không cần chạy migration. */
-function menuSlug(item) {
-  if (!item) return "";
-  return slugify(item.slug) || slugify(item.name) || String(item.id || "");
-}
-
-/* Đường dẫn công khai của 1 món — dùng chung cho trang chủ, trang chi
-   tiết, sitemap và schema, để mọi nơi luôn trỏ về cùng một URL. */
-function menuUrl(item) {
-  const slug = menuSlug(item);
-  if (slug) return "/mon/" + encodeURIComponent(slug);
-  return "/mon?id=" + encodeURIComponent(String((item && item.id) || ""));
-}
-
-/* Tiêu đề / mô tả hiển thị trên Google & khi share:
-   lấy từ tab SEO của món, để trống thì tự suy ra từ tên món + mô tả. */
-function menuSeoTitle(item, siteName) {
-  const custom = String((item && item.seoTitle) || "").trim();
-  if (custom) return custom;
-  const name = String((item && item.name) || "").trim();
-  return siteName ? name + " | " + siteName : name;
-}
-
-function menuSeoDesc(item, limit) {
-  const max = limit || 160;
-  const custom = String((item && item.seoDesc) || "").trim();
-  if (custom) return custom;
-  const raw = String((item && item.desc) || "").replace(/\s+/g, " ").trim();
-  if (raw.length <= max) return raw;
-  const cut = raw.slice(0, max - 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,;:.\-]+$/, "") + "…";
-}
-
 // ── db.* CRUD ─────────────────────────────────────────────────────
 const db = {
   posts: {
@@ -256,38 +201,13 @@ const db = {
     getAll()       { return [..._mem.menu]; },
     getAvailable() { return _mem.menu.filter((m) => m.available); },
     getById(id)    { return _mem.menu.find((m) => String(m.id) === String(id)) || null; },
-    /* Tra món theo đường dẫn /mon/<slug>. So sánh bằng menuSlug() nên
-       khớp cả món chưa có trường slug (slug suy ra từ tên món).
-       Không thấy thì thử tới các slug cũ, để link đã share / đã được
-       Google index không chết khi admin đổi Đường dẫn. */
-    getBySlug(slug) {
-      const want = slugify(slug);
-      if (!want) return null;
-      const exact = _mem.menu.find((m) => menuSlug(m) === want);
-      if (exact) return exact;
-      return _mem.menu.find((m) => (m.slugAliases || []).indexOf(want) !== -1) || null;
-    },
-    /* Slug phải là duy nhất trong thực đơn; trùng thì thêm -2, -3, ... */
-    uniqueSlug(desired, excludeId) {
-      const base = slugify(desired) || "mon";
-      let slug = base;
-      let n = 2;
-      while (_mem.menu.some((m) => String(m.id) !== String(excludeId) && menuSlug(m) === slug)) {
-        slug = base + "-" + n;
-        n += 1;
-      }
-      return slug;
-    },
     create(data) {
       const item = {
         id: uid(), emoji: data.emoji || "🍜", name: data.name || "",
         desc: data.desc || "", price: data.price || "", tag: data.tag || "",
+        group: data.group || "",
         available: data.available !== undefined ? data.available : true,
-        slug: "",
-        seoTitle: String(data.seoTitle || "").trim(),
-        seoDesc: String(data.seoDesc || "").trim(),
       };
-      item.slug = this.uniqueSlug(String(data.slug || "").trim() || item.name, item.id);
       _mem.menu.push(item);
       if (_useAPI) _apiPost("menu", "create", null, item);
       else writeJSON(DB_KEYS.menu, _mem.menu);
@@ -296,23 +216,7 @@ const db = {
     update(id, data) {
       const idx = _mem.menu.findIndex((m) => String(m.id) === String(id));
       if (idx === -1) return null;
-      const next = { ..._mem.menu[idx], ...data };
-      /* Chỉ tính lại slug khi form thực sự gửi lên slug/tên món, để các
-         thao tác nhanh (bật/tắt "Còn hàng", sắp xếp) không đổi URL. */
-      const has = (k) => Object.prototype.hasOwnProperty.call(data, k);
-      if (has("slug") || has("name")) {
-        const previous = menuSlug(_mem.menu[idx]);
-        next.slug = has("slug")
-          ? this.uniqueSlug(String(data.slug || "").trim() || next.name, id)
-          : this.uniqueSlug(next.slug || next.name, id);
-        if (previous && previous !== next.slug) {
-          // Giữ tối đa 5 slug cũ gần nhất để /mon/<slug-cũ> vẫn mở được.
-          next.slugAliases = [previous]
-            .concat((next.slugAliases || []).filter((a) => a !== previous && a !== next.slug))
-            .slice(0, 5);
-        }
-      }
-      _mem.menu[idx] = next;
+      _mem.menu[idx] = { ..._mem.menu[idx], ...data };
       if (_useAPI) _apiPost("menu", "update", id, _mem.menu[idx]);
       else writeJSON(DB_KEYS.menu, _mem.menu);
       return _mem.menu[idx];
@@ -565,66 +469,7 @@ async function _apiGetAsync(qs) {
   return null;
 }
 
-/* ── Nạp seed theo yêu cầu ─────────────────────────────────────────
-   data.js + data-posts.js + data-reservations.js (~96KB) chỉ dùng để
-   khởi tạo DB rỗng lần đầu, nhưng trước đây trang công khai nào cũng
-   phải tải và parse chúng. Giờ chỉ nạp khi thật sự cần seed (DB trống
-   hoặc chạy dev không có api.php). Trang admin vẫn nhúng sẵn bằng thẻ
-   <script> vì chúng dùng đường khởi tạo đồng bộ, không await được. */
-let _seedScriptsPromise = null;
-
-function _loadSeedScripts() {
-  if (typeof SETTINGS_SEED !== "undefined") return Promise.resolve();
-  if (_seedScriptsPromise) return _seedScriptsPromise;
-
-  const files = ["data.js", "data-posts.js", "data-reservations.js"];
-  _seedScriptsPromise = files.reduce(
-    (chain, file) => chain.then(() => new Promise((resolve) => {
-      const el = document.createElement("script");
-      el.src = "/assets/js/" + file;
-      el.onload = resolve;
-      el.onerror = resolve; // thiếu file seed thì vẫn chạy tiếp với mặc định
-      document.head.appendChild(el);
-    })),
-    Promise.resolve()
-  );
-  return _seedScriptsPromise;
-}
-
-/* ── Cache dữ liệu trong phiên ─────────────────────────────────────
-   api.php?action=init trả về toàn bộ DB (~64KB) và bị đánh dấu
-   no-store, nên trước đây mỗi lần chuyển trang / chuyển món đều phải
-   tải lại từ đầu, và vùng nội dung để trắng cho tới khi tải xong.
-   Giữ lại bản chụp trong sessionStorage (theo tab) để lần chuyển trang
-   sau render ngay lập tức, rồi làm mới ngầm cho lần sau nữa. */
-const DB_CACHE_KEY = "dsp_db_cache";
-const DB_CACHE_TTL = 60000; // 60 giây
-
-function _readDbCache() {
-  try {
-    const raw = sessionStorage.getItem(DB_CACHE_KEY);
-    if (!raw) return null;
-    const entry = JSON.parse(raw);
-    if (!entry || !entry.at || !entry.data) return null;
-    if (Date.now() - entry.at > DB_CACHE_TTL) return null;
-    if (!entry.data.settings || Object.keys(entry.data.settings).length === 0) return null;
-    return entry.data;
-  } catch (e) { return null; }
-}
-
-function _writeDbCache(data) {
-  try { sessionStorage.setItem(DB_CACHE_KEY, JSON.stringify({ at: Date.now(), data })); }
-  catch (e) { /* hết quota hoặc chế độ riêng tư — bỏ qua, chỉ mất tốc độ */ }
-}
-
-/* Mọi thao tác ghi đều xoá cache để admin sửa xong là thấy ngay,
-   không phải chờ hết TTL. */
-function _clearDbCache() {
-  try { sessionStorage.removeItem(DB_CACHE_KEY); } catch (e) {}
-}
-
 async function _seedViaAPIAsync() {
-  await _loadSeedScripts();
   const seed = {
     settings:     (typeof SETTINGS_SEED     !== "undefined" ? SETTINGS_SEED     : {}),
     menu:         (typeof MENU_SEED         !== "undefined" ? MENU_SEED         : []),
@@ -639,42 +484,19 @@ async function _seedViaAPIAsync() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(seed),
   });
-  if (res.status === 200) { _mem = seed; _useAPI = true; _writeDbCache(seed); }
+  if (res.status === 200) { _mem = seed; _useAPI = true; }
   else { _useAPI = false; _initLocalStorage(); }
 }
 
-/* Tải lại dữ liệu ngầm sau khi đã render từ cache. Không chặn gì cả:
-   DOM đang hiện giữ nguyên, bản mới chỉ phục vụ lần chuyển trang kế. */
-async function _revalidateDB() {
-  try {
-    const data = await _apiGetAsync("action=init");
-    if (data && data.settings && Object.keys(data.settings).length > 0) {
-      _mem = data;
-      _writeDbCache(data);
-    }
-  } catch (e) { /* mạng chập chờn — vẫn dùng bản cache */ }
-}
-
 async function initDBAsync() {
-  // Chuyển trang trong cùng tab: có cache thì render ngay, khỏi chờ mạng.
-  const cached = _readDbCache();
-  if (cached) {
-    _mem = cached;
-    _useAPI = true;
-    window.dbFresh = _revalidateDB();
-    return;
-  }
-
-  window.dbFresh = Promise.resolve();
   try {
     const data = await _apiGetAsync("action=init");
     if (data && data.seeded === false) { await _seedViaAPIAsync(); return; }
     if (data && data.settings && Object.keys(data.settings).length > 0) {
-      _mem = data; _useAPI = true; _writeDbCache(data); return;
+      _mem = data; _useAPI = true; return;
     }
   } catch (e) { /* api.php không tồn tại — dev mode */ }
   _useAPI = false;
-  await _loadSeedScripts();
   _initLocalStorage();
 }
 
