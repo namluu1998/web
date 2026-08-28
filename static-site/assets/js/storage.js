@@ -25,6 +25,7 @@ function _apiGetSync(qs) {
 
 // ── Async POST (fire-and-forget, không block UI) ──────────────────
 function _apiPost(entity, action, id, body) {
+  _clearDbCache(); // vừa ghi -> bản chụp trong phiên đã cũ
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   fetch(url, {
@@ -44,6 +45,7 @@ function _apiPost(entity, action, id, body) {
 // message on non-2xx. Used by the public booking form so it can wait for the
 // server's verdict (anti-spam, duplicate slot) before telling the user.
 function _apiPostAwait(entity, action, id, body) {
+  _clearDbCache();
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   return fetch(url, {
@@ -563,7 +565,66 @@ async function _apiGetAsync(qs) {
   return null;
 }
 
+/* ── Nạp seed theo yêu cầu ─────────────────────────────────────────
+   data.js + data-posts.js + data-reservations.js (~96KB) chỉ dùng để
+   khởi tạo DB rỗng lần đầu, nhưng trước đây trang công khai nào cũng
+   phải tải và parse chúng. Giờ chỉ nạp khi thật sự cần seed (DB trống
+   hoặc chạy dev không có api.php). Trang admin vẫn nhúng sẵn bằng thẻ
+   <script> vì chúng dùng đường khởi tạo đồng bộ, không await được. */
+let _seedScriptsPromise = null;
+
+function _loadSeedScripts() {
+  if (typeof SETTINGS_SEED !== "undefined") return Promise.resolve();
+  if (_seedScriptsPromise) return _seedScriptsPromise;
+
+  const files = ["data.js", "data-posts.js", "data-reservations.js"];
+  _seedScriptsPromise = files.reduce(
+    (chain, file) => chain.then(() => new Promise((resolve) => {
+      const el = document.createElement("script");
+      el.src = "/assets/js/" + file;
+      el.onload = resolve;
+      el.onerror = resolve; // thiếu file seed thì vẫn chạy tiếp với mặc định
+      document.head.appendChild(el);
+    })),
+    Promise.resolve()
+  );
+  return _seedScriptsPromise;
+}
+
+/* ── Cache dữ liệu trong phiên ─────────────────────────────────────
+   api.php?action=init trả về toàn bộ DB (~64KB) và bị đánh dấu
+   no-store, nên trước đây mỗi lần chuyển trang / chuyển món đều phải
+   tải lại từ đầu, và vùng nội dung để trắng cho tới khi tải xong.
+   Giữ lại bản chụp trong sessionStorage (theo tab) để lần chuyển trang
+   sau render ngay lập tức, rồi làm mới ngầm cho lần sau nữa. */
+const DB_CACHE_KEY = "dsp_db_cache";
+const DB_CACHE_TTL = 60000; // 60 giây
+
+function _readDbCache() {
+  try {
+    const raw = sessionStorage.getItem(DB_CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || !entry.at || !entry.data) return null;
+    if (Date.now() - entry.at > DB_CACHE_TTL) return null;
+    if (!entry.data.settings || Object.keys(entry.data.settings).length === 0) return null;
+    return entry.data;
+  } catch (e) { return null; }
+}
+
+function _writeDbCache(data) {
+  try { sessionStorage.setItem(DB_CACHE_KEY, JSON.stringify({ at: Date.now(), data })); }
+  catch (e) { /* hết quota hoặc chế độ riêng tư — bỏ qua, chỉ mất tốc độ */ }
+}
+
+/* Mọi thao tác ghi đều xoá cache để admin sửa xong là thấy ngay,
+   không phải chờ hết TTL. */
+function _clearDbCache() {
+  try { sessionStorage.removeItem(DB_CACHE_KEY); } catch (e) {}
+}
+
 async function _seedViaAPIAsync() {
+  await _loadSeedScripts();
   const seed = {
     settings:     (typeof SETTINGS_SEED     !== "undefined" ? SETTINGS_SEED     : {}),
     menu:         (typeof MENU_SEED         !== "undefined" ? MENU_SEED         : []),
@@ -578,19 +639,42 @@ async function _seedViaAPIAsync() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(seed),
   });
-  if (res.status === 200) { _mem = seed; _useAPI = true; }
+  if (res.status === 200) { _mem = seed; _useAPI = true; _writeDbCache(seed); }
   else { _useAPI = false; _initLocalStorage(); }
 }
 
+/* Tải lại dữ liệu ngầm sau khi đã render từ cache. Không chặn gì cả:
+   DOM đang hiện giữ nguyên, bản mới chỉ phục vụ lần chuyển trang kế. */
+async function _revalidateDB() {
+  try {
+    const data = await _apiGetAsync("action=init");
+    if (data && data.settings && Object.keys(data.settings).length > 0) {
+      _mem = data;
+      _writeDbCache(data);
+    }
+  } catch (e) { /* mạng chập chờn — vẫn dùng bản cache */ }
+}
+
 async function initDBAsync() {
+  // Chuyển trang trong cùng tab: có cache thì render ngay, khỏi chờ mạng.
+  const cached = _readDbCache();
+  if (cached) {
+    _mem = cached;
+    _useAPI = true;
+    window.dbFresh = _revalidateDB();
+    return;
+  }
+
+  window.dbFresh = Promise.resolve();
   try {
     const data = await _apiGetAsync("action=init");
     if (data && data.seeded === false) { await _seedViaAPIAsync(); return; }
     if (data && data.settings && Object.keys(data.settings).length > 0) {
-      _mem = data; _useAPI = true; return;
+      _mem = data; _useAPI = true; _writeDbCache(data); return;
     }
   } catch (e) { /* api.php không tồn tại — dev mode */ }
   _useAPI = false;
+  await _loadSeedScripts();
   _initLocalStorage();
 }
 

@@ -51,6 +51,24 @@ Dish detail pages use slug URLs: `/mon/<slug>` (previously `/mon?id=<id>`).
   field disables the hardcoded GA4 tag in `assets/js/common.js` so views are not
   double-counted.
 
+### Page-to-page loading
+
+Public pages fetch `api.php?action=init` (the whole database, ~64 KB) and render
+nothing until it resolves, so every navigation used to blank the content area.
+Two changes fix that:
+
+- `storage.js` caches the init payload in `sessionStorage` (60s TTL, cleared on
+  every write), so the second and later navigations in a tab render immediately
+  and revalidate in the background. `window.dbFresh` resolves once the
+  background refresh lands, if a page ever needs guaranteed-fresh data.
+- The seed files (`data.js`, `data-posts.js`, `data-reservations.js`, ~96 KB)
+  are only used to populate an empty database, so public pages no longer ship
+  them as `<script>` tags — `storage.js` loads them on demand when seeding is
+  actually needed. Admin pages keep the tags because they init synchronously.
+
+Trimming the init payload itself is a server-side change; see the php-patch
+README.
+
 The server half of the slug routing lives in `mon.php`, which is gitignored
 (it embeds the live DB credentials). Apply it with
 [`static-site/php-patch/README.md`](static-site/php-patch/README.md) — the

@@ -112,6 +112,48 @@ Lưu → F5**. Nếu ô Đường dẫn vẫn còn giá trị thì `api.php` kh�
 
 ---
 
+## 3b. `api.php?action=init` — nên thu gọn payload (tuỳ chọn)
+
+Hiện `action=init` trả về **toàn bộ** database cho mọi trang công khai:
+
+| Phần | Dung lượng | Trang món có dùng không? |
+|------|-----------:|--------------------------|
+| `posts` (kèm full HTML bài viết) | ~52 KB | ❌ |
+| `menu` | ~5,5 KB | ✅ |
+| `settings` | ~4 KB | ✅ |
+| `reviews` + `faqs` | ~3,3 KB | ❌ |
+| `users` | ~0,1 KB | ❌ |
+
+Tổng ~64 KB (24 KB sau gzip) cho mỗi lượt xem trang, trong đó riêng 1 bài viết
+đã chiếm 41 KB. Phía client đã được vá (xem mục dưới) nên chỉ còn tải 1 lần mỗi
+phiên, nhưng cắt bớt ở server vẫn đáng làm:
+
+```php
+// ?action=init&scope=public  -> bỏ users, và chỉ trả excerpt của bài viết
+$scope = isset($_GET['scope']) ? $_GET['scope'] : '';
+if ($scope === 'public') {
+    unset($out['users']);
+    foreach ($out['posts'] as &$p) { unset($p['content']); }
+    unset($p);
+}
+```
+
+Kèm theo đó, `bai-viet.php` / `post.js` cần lấy nội dung bài riêng khi mở bài
+(`?action=post&id=...`) thay vì trông chờ vào payload init.
+
+`users` cũng không nên nằm trong payload công khai. Hiện `api.php` đã lọc bỏ
+trường `password` (đã kiểm tra) nên **không lộ mật khẩu**, nhưng tên đăng nhập
+và vai trò của tài khoản quản trị vẫn hiện ra với mọi khách — không cần thiết.
+
+### Phía client đã làm gì (không cần sửa PHP)
+
+`assets/js/storage.js` giờ chụp lại payload init vào `sessionStorage` (TTL 60
+giây, tự xoá mỗi khi có thao tác ghi). Lần chuyển trang / chuyển món kế tiếp
+trong cùng tab sẽ render ngay từ bản chụp rồi mới làm mới ngầm, nên không còn
+cảnh vùng nội dung để trắng chờ mạng.
+
+---
+
 ## 4. Checklist nghiệm thu
 
 | # | Việc | Kỳ vọng |
