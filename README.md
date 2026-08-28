@@ -57,6 +57,10 @@ Product pages use slug URLs: `/mon/<slug>` (previously `/mon?id=<id>`).
   field disables the hardcoded GA4 tag in `assets/js/common.js` so views are not
   double-counted.
 
+Articles follow the same pattern at `/bai-viet/<slug>`, with the SEO block on
+the post form and the slug derived from the title. Posts have no variants, so
+each post is simply one URL.
+
 ### Page-to-page loading
 
 Public pages fetch `api.php?action=init` (the whole database, ~64 KB) and render

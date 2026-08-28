@@ -162,14 +162,17 @@ const SITE_URL = "https://bunquayphuquoc.com";
 /* Bỏ dấu tiếng Việt và chuyển về kebab-case an toàn cho URL.
    "Bún Quậy Phú Quốc" -> "bun-quay-phu-quoc" */
 function slugify(str) {
-  return String(str === null || str === undefined ? "" : str)
+  const out = String(str === null || str === undefined ? "" : str)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d").replace(/Đ/g, "d")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
-    .replace(/-+$/g, "");
+    .replace(/^-+|-+$/g, "");
+  if (out.length <= 80) return out;
+  // Cắt ở ranh giới từ, đừng để URL kết thúc bằng nửa chữ ("...cho-du-kh").
+  const cut = out.slice(0, 80);
+  const lastDash = cut.lastIndexOf("-");
+  return (lastDash > 40 ? cut.slice(0, lastDash) : cut).replace(/-+$/g, "");
 }
 
 /* Khoá gom nhóm: tên group, hoặc chính id nếu là món độc lập. */
@@ -211,15 +214,48 @@ function menuSeoTitle(item, siteName) {
   return siteName ? withPlace + " | " + siteName : withPlace;
 }
 
-function menuSeoDesc(item, limit) {
-  const max = limit || 160;
-  const custom = String((item && item.seoDesc) || "").trim();
-  if (custom) return custom;
-  const raw = String((item && item.desc) || "").replace(/\s+/g, " ").trim();
+/* Cắt gọn một đoạn văn về đúng độ dài thẻ meta, dừng ở ranh giới từ. */
+function trimForMeta(text, max) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
   if (raw.length <= max) return raw;
   const cut = raw.slice(0, max - 1);
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,;:.\-]+$/, "") + "…";
+}
+
+function menuSeoDesc(item, limit) {
+  const custom = String((item && item.seoDesc) || "").trim();
+  return custom || trimForMeta(item && item.desc, limit || 160);
+}
+
+// ── Bài viết: slug & SEO ──────────────────────────────────────────
+// Bài viết không có biến thể nên mỗi bài là một URL, đơn giản hơn món.
+
+/* Slug công khai của bài viết: ưu tiên "Đường dẫn" admin đặt trong phần
+   SEO, không có thì sinh từ tiêu đề, cuối cùng mới rơi về id. Bài cũ
+   chưa có trường slug vẫn ra URL đẹp mà không cần migration. */
+function postSlug(post) {
+  if (!post) return "";
+  return slugify(post.slug) || slugify(post.title) || String(post.id || "");
+}
+
+function postUrl(post) {
+  const slug = postSlug(post);
+  if (slug) return "/bai-viet/" + encodeURIComponent(slug);
+  return "/bai-viet?id=" + encodeURIComponent(String((post && post.id) || ""));
+}
+
+function postSeoTitle(post, siteName) {
+  const custom = String((post && post.seoTitle) || "").trim();
+  if (custom) return custom;
+  const title = String((post && post.title) || "").trim();
+  if (!title) return siteName || "";
+  return siteName ? title + " | " + siteName : title;
+}
+
+function postSeoDesc(post, limit) {
+  const custom = String((post && post.seoDesc) || "").trim();
+  return custom || trimForMeta(post && post.excerpt, limit || 160);
 }
 
 // ── db.* CRUD ─────────────────────────────────────────────────────
@@ -231,27 +267,81 @@ const db = {
         .sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
     },
     getById(id) { return _mem.posts.find((p) => String(p.id) === String(id)) || null; },
+
+    /* Tra bài theo đường dẫn /bai-viet/<slug>. So sánh bằng postSlug()
+       nên khớp cả bài chưa có trường slug (slug suy từ tiêu đề). Không
+       thấy thì thử tới slug cũ, để link đã share / đã được Google index
+       không chết khi admin đổi Đường dẫn. */
+    getBySlug(slug) {
+      const want = slugify(slug);
+      if (!want) return null;
+      const hit = (list) => list.find((p) => postSlug(p) === want)
+                         || list.find((p) => (p.slugAliases || []).indexOf(want) !== -1)
+                         || null;
+      return hit(_mem.posts.filter((p) => p.published)) || hit(_mem.posts);
+    },
+
+    /* Slug phải là duy nhất giữa các bài; trùng thì thêm -2, -3, ... */
+    uniqueSlug(desired, excludeId) {
+      const base = slugify(desired) || "bai-viet";
+      let slug = base;
+      let n = 2;
+      while (_mem.posts.some((p) => String(p.id) !== String(excludeId) && postSlug(p) === slug)) {
+        slug = base + "-" + n;
+        n += 1;
+      }
+      return slug;
+    },
+
     create(data) {
       const post = {
+        // Giữ lại mọi trường form gửi lên (htmlFileUrl, ...) rồi mới
+        // chuẩn hoá các trường bắt buộc — trước đây liệt kê cứng nên
+        // bài mới có trang HTML độc lập bị mất luôn đường dẫn file.
+        ...data,
         id: uid(), emoji: data.emoji || "📝", title: data.title || "",
         date: data.date || new Date().toLocaleDateString("vi-VN"),
         views: "0", excerpt: data.excerpt || "", content: data.content || "",
         tag: data.tag || "", tags: data.tags || [],
         published: data.published !== undefined ? data.published : true,
         featured: data.featured || false,
+        seoTitle: String(data.seoTitle || "").trim(),
+        seoDesc: String(data.seoDesc || "").trim(),
+        slug: "",
       };
+      post.slug = this.uniqueSlug(String(data.slug || "").trim() || post.title, post.id);
       _mem.posts.unshift(post);
       if (_useAPI) _apiPost("posts", "create", null, post);
       else writeJSON(DB_KEYS.posts, _mem.posts);
       return post;
     },
+
     update(id, data) {
       const idx = _mem.posts.findIndex((p) => String(p.id) === String(id));
       if (idx === -1) return null;
-      _mem.posts[idx] = { ..._mem.posts[idx], ...data };
-      if (_useAPI) _apiPost("posts", "update", id, _mem.posts[idx]);
+      const before = _mem.posts[idx];
+      const next = { ...before, ...data };
+      const has = (k) => Object.prototype.hasOwnProperty.call(data, k);
+
+      /* Chỉ tính lại slug khi form thực sự gửi slug/tiêu đề, để các thao
+         tác nhanh (ẩn/hiện, đánh dấu nổi bật, tăng lượt xem) không đổi URL. */
+      if (has("slug") || has("title")) {
+        const previous = postSlug(before);
+        next.slug = has("slug")
+          ? this.uniqueSlug(String(data.slug || "").trim() || next.title, id)
+          : this.uniqueSlug(next.slug || next.title, id);
+        if (previous && previous !== next.slug) {
+          // Giữ tối đa 5 slug cũ để /bai-viet/<slug-cũ> vẫn mở được.
+          next.slugAliases = [previous]
+            .concat((next.slugAliases || []).filter((a) => a !== previous && a !== next.slug))
+            .slice(0, 5);
+        }
+      }
+
+      _mem.posts[idx] = next;
+      if (_useAPI) _apiPost("posts", "update", id, next);
       else writeJSON(DB_KEYS.posts, _mem.posts);
-      return _mem.posts[idx];
+      return next;
     },
     remove(id) {
       _mem.posts = _mem.posts.filter((p) => String(p.id) !== String(id));

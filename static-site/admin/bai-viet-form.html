@@ -109,6 +109,31 @@
             <input type="text" id="f-views" class="form-input" />
           </div>
 
+          <div class="rounded-xl border p-3 space-y-3" style="border-color:#e5e7eb;background:#fafafa;">
+            <div>
+              <p class="font-bold text-sm" style="color:#1a5276;">🔍 SEO</p>
+              <p class="text-xs text-gray-400 mt-1">Để trống thì hệ thống tự lấy từ <strong>tiêu đề</strong> và <strong>tóm tắt</strong>.</p>
+            </div>
+
+            <div>
+              <label class="form-label">Tiêu đề</label>
+              <input type="text" id="f-seoTitle" class="form-input" maxlength="200" />
+              <p class="seo-counter mt-1"><span id="f-seoTitle-count">0</span>/70</p>
+            </div>
+
+            <div>
+              <label class="form-label">Mô tả</label>
+              <textarea id="f-seoDesc" class="form-textarea" rows="3" maxlength="500"></textarea>
+              <p class="seo-counter mt-1"><span id="f-seoDesc-count">0</span>/160</p>
+            </div>
+
+            <div>
+              <label class="form-label">Đường dẫn</label>
+              <input type="text" id="f-slug" class="form-input" placeholder="tu-dong-tao-tu-tieu-de" />
+              <p class="seo-counter mt-1" style="word-break:break-all;">https://bunquayphuquoc.com/bai-viet/<strong id="f-slug-preview" style="color:#374151;"></strong></p>
+            </div>
+          </div>
+
           <button type="submit" class="btn-admin" style="width:100%;">💾 Lưu bài viết</button>
         </div>
       </form>
@@ -126,6 +151,42 @@
     const EMOJIS = ["📝", "🍜", "🦐", "🫙", "🥜", "🦀", "🦑", "🐟", "🥗", "🍵", "🗺️", "📸"];
 
     let editingId = null;
+    const SEO_LIMITS = { seoTitle: 70, seoDesc: 160 };
+    // Admin đã tự gõ Đường dẫn chưa? Nếu chưa thì slug bám theo tiêu đề.
+    let slugTouched = false;
+
+    /* Bộ đếm ký tự: quá ngưỡng khuyến nghị thì đổi màu cảnh báo, nhưng
+       vẫn cho lưu (Google chỉ cắt bớt chứ không báo lỗi). */
+    function updateSeoCounter(fieldId) {
+      const input = document.getElementById(fieldId);
+      const counter = document.getElementById(fieldId + "-count");
+      if (!input || !counter) return;
+      const len = input.value.trim().length;
+      counter.textContent = len;
+      counter.parentElement.classList.toggle("over", len > SEO_LIMITS[fieldId.replace("f-", "")]);
+    }
+
+    /* Đường dẫn thật sự sẽ dùng: ô Đường dẫn, không có thì suy từ tiêu đề. */
+    function updateSlugPreview() {
+      const typed = slugify(document.getElementById("f-slug").value);
+      const derived = slugify(document.getElementById("f-title").value);
+      document.getElementById("f-slug-preview").textContent = typed || derived || "…";
+    }
+
+    function wireSeoFields() {
+      document.getElementById("f-title").addEventListener("input", () => { if (!slugTouched) updateSlugPreview(); });
+      const slugInput = document.getElementById("f-slug");
+      slugInput.addEventListener("input", () => { slugTouched = true; updateSlugPreview(); });
+      // Gõ xong mới chuẩn hoá, để không cắt dấu "-" ngay khi đang gõ.
+      slugInput.addEventListener("blur", () => {
+        const cleaned = slugify(slugInput.value);
+        if (slugInput.value !== cleaned) slugInput.value = cleaned;
+        if (!cleaned) slugTouched = false;
+        updateSlugPreview();
+      });
+      document.getElementById("f-seoTitle").addEventListener("input", () => updateSeoCounter("f-seoTitle"));
+      document.getElementById("f-seoDesc").addEventListener("input", () => updateSeoCounter("f-seoDesc"));
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
       const user = initAdminLayout("bai-viet.html");
@@ -203,6 +264,8 @@
         e.target.value = "";
       });
 
+      wireSeoFields();
+
       const params = new URLSearchParams(window.location.search);
       editingId = params.get("id");
 
@@ -224,6 +287,10 @@
         document.getElementById("f-tag").value = post.tag || "";
         document.getElementById("f-published").value = post.published ? "true" : "false";
         document.getElementById("f-featured").checked = !!post.featured;
+        document.getElementById("f-seoTitle").value = post.seoTitle || "";
+        document.getElementById("f-seoDesc").value = post.seoDesc || "";
+        document.getElementById("f-slug").value = post.slug || "";
+        slugTouched = Boolean(post.slug);
 
         document.getElementById("views-field").classList.remove("hidden");
         document.getElementById("f-views").value = (post.views || "0").toLocaleString
@@ -238,6 +305,11 @@
         updateCoverPreview();
         renderHtmlPagePreview();
       }
+
+      // Đồng bộ bộ đếm + xem trước đường dẫn cho cả bài mới lẫn bài cũ.
+      updateSeoCounter("f-seoTitle");
+      updateSeoCounter("f-seoDesc");
+      updateSlugPreview();
 
       document.getElementById("post-form").addEventListener("submit", (e) => {
         e.preventDefault();
@@ -258,6 +330,10 @@
           tags: document.getElementById("f-tag").value ? [document.getElementById("f-tag").value] : [],
           published: document.getElementById("f-published").value === "true",
           featured: document.getElementById("f-featured").checked,
+          seoTitle: document.getElementById("f-seoTitle").value.trim(),
+          seoDesc: document.getElementById("f-seoDesc").value.trim(),
+          // Để trống -> db.posts tự sinh slug từ tiêu đề (và tránh trùng).
+          slug: slugify(document.getElementById("f-slug").value),
         };
 
         if (editingId) {

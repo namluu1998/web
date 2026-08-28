@@ -43,6 +43,9 @@ ErrorDocument 404 /404.html
   # Trang chi tiết bài viết phục vụ qua PHP để mỗi bài có og:image/title
   # riêng khi share (bot Facebook/Zalo không chạy JS). Giữ URL sạch
   # /bai-viet?id=... ; query string được chuyển tiếp bằng [QSA].
+  #   /bai-viet/<slug>  -> bai-viet.php?slug=<slug>   URL chuẩn
+  #   /bai-viet?id=...  -> bai-viet.php               URL cũ; PHP tự 301
+  RewriteRule ^bai-viet/([^/]+)/?$ bai-viet.php?slug=$1 [L,QSA]
   RewriteRule ^bai-viet/?$ bai-viet.php [L,QSA]
 
   # Sitemap động: /sitemap.xml sinh từ DB (tự có bài viết mới).

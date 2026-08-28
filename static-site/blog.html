@@ -349,7 +349,7 @@ function renderGrid() {
     const views = parseViews(post.views);
     const featuredBadge = post.featured ? `<span class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style="background:#e07b39;">Nổi bật</span>` : '';
 
-    return `<a href="bai-viet?id=${escapeHtml(post.id)}" class="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col" style="text-decoration:none;">
+    return `<a href="${escapeHtml(postUrl(post))}" class="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col" style="text-decoration:none;">
       <div class="relative overflow-hidden">
         ${thumbHtml(post, absIdx)}
         ${featuredBadge}
@@ -402,7 +402,7 @@ function renderPagination() {
 function renderSidebar() {
   const sorted = [...allPosts].sort((a, b) => parseViews(b.views) - parseViews(a.views)).slice(0, 10);
   document.getElementById('sidebar-list').innerHTML = sorted.map((p, i) => `
-    <a href="bai-viet?id=${escapeHtml(p.id)}" class="sidebar-post-item">
+    <a href="${escapeHtml(postUrl(p))}" class="sidebar-post-item">
       <span class="text-xs font-bold mt-0.5 shrink-0" style="color:#e07b39;min-width:1.2rem;">${i + 1}.</span>
       <span class="text-sm leading-snug line-clamp-2">${escapeHtml(p.title)}</span>
     </a>`).join('');

@@ -373,7 +373,7 @@ function renderPostsGrid() {
 
   visible.forEach((a) => {
     const link = document.createElement("a");
-    link.href = `bai-viet?id=${encodeURIComponent(a.id)}`;
+    link.href = postUrl(a);
     link.className = "bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group block";
     link.innerHTML = `
       <article>

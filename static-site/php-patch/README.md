@@ -66,6 +66,30 @@ RewriteRule ^mon/?$ mon.php [L,QSA]
 
 ---
 
+## 1b. `bai-viet.php` — bắt buộc (bài viết)
+
+Bài viết không có biến thể nên đơn giản hơn: mỗi bài một URL
+`/bai-viet/<slug>`. Bản vá sẵn: **[`bai-viet.php.template`](bai-viet.php.template)**
+— điền 3 giá trị kết nối DB rồi upload đè, y như mon.php.
+
+Thay đổi so với file đang chạy:
+
+- Nhận thêm `?slug=`, đọc danh sách bài đã xuất bản rồi resolve qua
+  `bq_post_find()` (slug hiện tại → slug cũ trong `slugAliases` → id).
+- 301 từ URL cũ sang URL chuẩn; slug sai trả HTTP 404 thật.
+- `title` / `description` lấy từ `bq_post_seo_title()` /
+  `bq_post_seo_desc()` nên tôn trọng ô SEO admin nhập, và mô tả được cắt
+  gọn ~160 ký tự thay vì đổ nguyên tóm tắt.
+
+`.htaccess` cần thêm (đặt **trước** rule `^([^.]+)$ $1.html`):
+
+```apache
+RewriteRule ^bai-viet/([^/]+)/?$ bai-viet.php?slug=$1 [L,QSA]
+RewriteRule ^bai-viet/?$ bai-viet.php [L,QSA]
+```
+
+---
+
 ## 2. `sitemap.php` — nên làm
 
 Sitemap hiện chỉ có trang chủ, blog, thư viện ảnh và các bài viết. Thêm từng
@@ -73,6 +97,9 @@ món để Google index được các landing page mới:
 
 ```php
 require_once __DIR__ . '/php-patch/seo-slug.php';
+
+// Bài viết: đổi <loc> sang bq_post_abs_url($post) thay cho /bai-viet?id=...
+// (giữ nguyên phần lastmod/priority đang có).
 
 // Mỗi SẢN PHẨM một URL (không phải mỗi biến thể) — 4 dòng, không phải 8.
 foreach (bq_menu_products($menu) as $item) {
@@ -161,3 +188,6 @@ cảnh vùng nội dung để trắng chờ mạng.
 | 5 | Trang chủ → bấm 1 món | Điều hướng sang URL slug |
 | 6 | `/mon/khong-co-that` | Trả HTTP 404 |
 | 7 | Facebook Sharing Debugger với URL slug | Hiện đúng ảnh + tiêu đề |
+| 8 | Mở `/bai-viet/<slug>` | Bài hiện đúng, canonical trỏ chính nó |
+| 9 | Mở `/bai-viet?id=<id>` | 301 sang `/bai-viet/<slug>` |
+| 10 | Tạo bài mới có tải trang HTML độc lập | Sau khi lưu, link file vẫn còn |

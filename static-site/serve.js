@@ -28,6 +28,7 @@ const MIME = {
 function rewritePath(urlPath) {
   if (urlPath === "/") return "/index.html";
   if (/^\/mon\/[^/]+\/?$/.test(urlPath)) return "/mon.html";
+  if (/^\/bai-viet\/[^/]+\/?$/.test(urlPath)) return "/bai-viet.html";
   return urlPath;
 }
 

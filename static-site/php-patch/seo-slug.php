@@ -55,7 +55,10 @@ function bq_slugify($str)
     $str = preg_replace('/[^a-z0-9]+/', '-', $str);
     $str = trim($str, '-');
     if (strlen($str) > 80) {
-        $str = rtrim(substr($str, 0, 80), '-');
+        // Cắt ở ranh giới từ, đừng để URL kết thúc bằng nửa chữ.
+        $cut = substr($str, 0, 80);
+        $lastDash = strrpos($cut, '-');
+        $str = rtrim($lastDash !== false && $lastDash > 40 ? substr($cut, 0, $lastDash) : $cut, '-');
     }
     return $str;
 }
@@ -168,6 +171,70 @@ function bq_menu_products($menu, $availableOnly = true)
     return $out;
 }
 
+// ── Bài viết ──────────────────────────────────────────────────────
+// Bài viết không có biến thể nên mỗi bài là một URL, đơn giản hơn món.
+
+function bq_post_slug($post)
+{
+    if (!$post) return '';
+    $fromSlug = bq_slugify(isset($post['slug']) ? $post['slug'] : '');
+    if ($fromSlug !== '') return $fromSlug;
+    $fromTitle = bq_slugify(isset($post['title']) ? $post['title'] : '');
+    if ($fromTitle !== '') return $fromTitle;
+    return isset($post['id']) ? (string) $post['id'] : '';
+}
+
+function bq_post_url($post)
+{
+    $slug = bq_post_slug($post);
+    if ($slug !== '') return '/bai-viet/' . rawurlencode($slug);
+    $id = isset($post['id']) ? (string) $post['id'] : '';
+    return '/bai-viet?id=' . rawurlencode($id);
+}
+
+function bq_post_abs_url($post)
+{
+    return BQ_SITE_URL . bq_post_url($post);
+}
+
+/** Tìm bài theo slug (URL mới), slug cũ, rồi tới id (URL cũ). */
+function bq_post_find($posts, $slug, $id)
+{
+    $want = bq_slugify($slug);
+    if ($want !== '') {
+        foreach ($posts as $p) {
+            if (bq_post_slug($p) === $want) return $p;
+        }
+        foreach ($posts as $p) {
+            $aliases = isset($p['slugAliases']) && is_array($p['slugAliases']) ? $p['slugAliases'] : array();
+            if (in_array($want, $aliases, true)) return $p;
+        }
+    }
+    $id = (string) $id;
+    if ($id !== '') {
+        foreach ($posts as $p) {
+            if (isset($p['id']) && (string) $p['id'] === $id) return $p;
+        }
+    }
+    return null;
+}
+
+function bq_post_seo_title($post, $siteName)
+{
+    $custom = trim(isset($post['seoTitle']) ? $post['seoTitle'] : '');
+    if ($custom !== '') return $custom;
+    $title = trim(isset($post['title']) ? $post['title'] : '');
+    if ($title === '') return (string) $siteName;
+    return $siteName ? $title . ' | ' . $siteName : $title;
+}
+
+function bq_post_seo_desc($post, $limit = 160)
+{
+    $custom = trim(isset($post['seoDesc']) ? $post['seoDesc'] : '');
+    if ($custom !== '') return $custom;
+    return bq_trim_meta(isset($post['excerpt']) ? $post['excerpt'] : '', $limit);
+}
+
 /** Tiêu đề hiển thị trên Google / khi share. */
 function bq_menu_seo_title($item, $siteName)
 {
@@ -186,8 +253,13 @@ function bq_menu_seo_desc($item, $limit = 160)
 {
     $custom = trim(isset($item['seoDesc']) ? $item['seoDesc'] : '');
     if ($custom !== '') return $custom;
+    return bq_trim_meta(isset($item['desc']) ? $item['desc'] : '', $limit);
+}
 
-    $raw = trim(preg_replace('/\s+/u', ' ', isset($item['desc']) ? $item['desc'] : ''));
+/** Cắt gọn một đoạn văn về đúng độ dài thẻ meta, dừng ở ranh giới từ. */
+function bq_trim_meta($text, $limit = 160)
+{
+    $raw = trim(preg_replace('/\s+/u', ' ', (string) $text));
     $len = function_exists('mb_strlen') ? mb_strlen($raw, 'UTF-8') : strlen($raw);
     if ($len <= $limit) return $raw;
 
