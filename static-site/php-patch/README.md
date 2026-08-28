@@ -11,63 +11,53 @@ trình duyệt luôn sinh ra cùng một URL cho cùng một món.
 
 ---
 
+## 0. Mô hình dữ liệu: sản phẩm ↔ biến thể
+
+Các dòng trong bảng `menu` cùng giá trị `group` là **biến thể của một sản
+phẩm**. Dữ liệu thật hiện có 8 dòng = 4 sản phẩm:
+
+| Sản phẩm (`group`) | Biến thể |
+|---|---|
+| Bún Quậy Phú Quốc | Thường · Tô Đặc Biệt · Tô Thượng Hạng |
+| MẮT CÁ NGỪ ĐẠI DƯƠNG PHÚ QUỐC | Bình thường · MỰC · GÂN CÁ |
+| Bún Rạm | *(không nhóm)* |
+| Nước Mía | *(không nhóm)* |
+
+**Slug và thẻ SEO gắn với SẢN PHẨM, không phải từng biến thể.** Nếu mỗi
+biến thể có URL riêng thì 3 trang sẽ trùng nội dung — đúng thứ cần tránh.
+`/mon/bun-quay-phu-quoc` là một URL duy nhất, mở ra bộ chọn biến thể.
+
+Phía admin, sửa SEO ở biến thể nào cũng được: `db.menu.update()` tự chép
+`slug` / `seoTitle` / `seoDesc` sang mọi biến thể cùng nhóm.
+
+---
+
 ## 1. `mon.php` — bắt buộc
 
-Đây là thay đổi duy nhất **bắt buộc**: bot Google/Facebook/Zalo không chạy JS,
-nên `mon.php` phải tự resolve slug và render sẵn thẻ meta.
+Đã có sẵn bản vá hoàn chỉnh: **[`mon.php.template`](mon.php.template)**.
 
-### 1.1 Nạp helper (đầu file)
+1. Mở `mon.php` đang chạy trên server, copy 3 giá trị kết nối DB.
+2. Dán vào `___TEN_DATABASE___`, `___TEN_USER___`, `___MAT_KHAU___` trong
+   template (template cố ý không chứa mật khẩu thật vì nằm trong repo).
+3. Upload đè lên `mon.php`, và upload cả thư mục `php-patch/` (chứa
+   `seo-slug.php`) đặt cạnh nó.
 
-```php
-require_once __DIR__ . '/php-patch/seo-slug.php';
-```
+Bản vá thay đổi đúng 3 chỗ so với file đang chạy:
 
-### 1.2 Thay chỗ đang đọc `$_GET['id']`
+- Nhận thêm `?slug=`, đọc cả thực đơn rồi resolve qua `bq_menu_find()`
+  (slug hiện tại → slug cũ trong `slugAliases` → id), trả về biến thể
+  còn phục vụ đầu tiên.
+- 301 từ URL cũ (`?id=` hoặc slug cũ) sang URL chuẩn của sản phẩm; slug
+  sai trả HTTP 404 thật thay vì 200.
+- `title` / `description` / `canonical` / `og:*` lấy từ helper. Việc này
+  cũng sửa luôn lỗi tiêu đề đang lặp — nhóm tên "Bún Quậy Phú Quốc" được
+  nối thêm " Phú Quốc" thành **"Bún Quậy Phú Quốc Phú Quốc | Bún Quậy
+  Như Ý"**; `bq_menu_seo_title()` chỉ chèn "Phú Quốc" khi tên chưa có.
 
-`$menu` là mảng tất cả các món đã `json_decode` từ cột `menu`.`data`
-(chính là dữ liệu `mon.php` đang dùng để tìm món theo id).
+### `.htaccess`
 
-```php
-$slug = isset($_GET['slug']) ? $_GET['slug'] : '';
-$id   = isset($_GET['id'])   ? $_GET['id']   : '';
-
-// Tìm theo slug hiện tại -> slug cũ (slugAliases) -> id
-$item = bq_menu_find($menu, $slug, $id);
-
-// Vào bằng URL cũ (/mon?id=... hoặc slug cũ) -> 301 sang URL chuẩn
-// hiện tại, để Google gộp tất cả về một URL duy nhất.
-// Điều kiện so sánh cũng chính là chốt chặn lặp vô hạn: đang ở đúng
-// URL chuẩn thì hai vế bằng nhau và không redirect nữa.
-if ($item && bq_slugify($slug) !== bq_menu_slug($item)) {
-    header('Location: ' . bq_menu_url($item), true, 301);
-    exit;
-}
-
-if (!$item) {
-    http_response_code(404);   // slug sai -> trả 404 thật, đừng trả 200
-}
-```
-
-### 1.3 Thay chỗ đang in thẻ meta
-
-```php
-$canonical = bq_menu_abs_url($item);
-$seoTitle  = bq_menu_seo_title($item, $siteName);   // $siteName lấy từ settings
-$seoDesc   = bq_menu_seo_desc($item);               // tự cắt ~160 ký tự
-```
-
-Rồi dùng `$seoTitle` / `$seoDesc` / `$canonical` cho `<title>`,
-`meta[name=description]`, `link[rel=canonical]`, `og:title`, `og:description`,
-`og:url`, `twitter:*` và trường `url` trong JSON-LD.
-
-> Hiện tại `mon.php` đang đổ **nguyên mô tả món** (nhiều đoạn, vài trăm ký tự)
-> vào `description`/`og:description`. `bq_menu_seo_desc()` thay thế đúng chỗ đó:
-> ưu tiên ô **Mô tả** trong phần SEO của món, không có thì cắt gọn mô tả.
-
-### 1.4 `.htaccess`
-
-Copy 2 dòng rewrite mới từ [`../.htaccess.example`](../.htaccess.example) sang
-`.htaccess` thật (đặt **trước** rule `^([^.]+)$ $1.html`):
+Thêm 2 dòng (đặt **trước** rule `^([^.]+)$ $1.html`), xem
+[`../.htaccess.example`](../.htaccess.example):
 
 ```apache
 RewriteRule ^mon/([^/]+)/?$ mon.php?slug=$1 [L,QSA]
@@ -82,8 +72,10 @@ Sitemap hiện chỉ có trang chủ, blog, thư viện ảnh và các bài vi�
 món để Google index được các landing page mới:
 
 ```php
-foreach ($menu as $item) {
-    if (empty($item['available'])) continue;
+require_once __DIR__ . '/php-patch/seo-slug.php';
+
+// Mỗi SẢN PHẨM một URL (không phải mỗi biến thể) — 4 dòng, không phải 8.
+foreach (bq_menu_products($menu) as $item) {
     echo "  <url>\n";
     echo "    <loc>" . htmlspecialchars(bq_menu_abs_url($item), ENT_XML1) . "</loc>\n";
     echo "    <changefreq>monthly</changefreq>\n";
@@ -161,6 +153,9 @@ cảnh vùng nội dung để trắng chờ mạng.
 | 1 | Mở `/mon/bun-quay-phu-quoc` | Trang món hiện đúng, không 404 |
 | 2 | Mở `/mon?id=17848842917841kqr3a` | 301 sang `/mon/<slug>` |
 | 2b | Đổi Đường dẫn 1 món rồi mở slug cũ | 301 sang slug mới |
+| 2c | Mở `?id=` của **cả 3 biến thể** Bún Quậy | Cả 3 đều 301 về cùng 1 URL |
+| 2d | Trang sản phẩm nhiều biến thể | Vẫn còn nút chọn loại, đổi giá tại chỗ |
+| 2e | Xem `<title>` | Không lặp "Phú Quốc Phú Quốc" |
 | 3 | `curl -s /mon/<slug> \| grep canonical` | Trỏ về chính URL slug |
 | 4 | Xem nguồn trang, tìm `og:title` | Đúng Tiêu đề SEO đã nhập |
 | 5 | Trang chủ → bấm 1 món | Điều hướng sang URL slug |

@@ -104,6 +104,35 @@
               <label for="f-available" class="text-sm text-gray-700">Còn hàng</label>
             </div>
 
+            <div class="rounded-xl border p-4 space-y-4" style="border-color:#e5e7eb;background:#fafafa;">
+              <div>
+                <p class="font-bold" style="color:#1a5276;">🔍 Tối ưu công cụ tìm kiếm (SEO)</p>
+                <p class="text-xs text-gray-400 mt-1">
+                  Quyết định tiêu đề, mô tả và đường dẫn khi sản phẩm hiện trên Google hoặc khi share Facebook/Zalo.
+                  Để trống ô nào thì hệ thống tự lấy từ <strong>tên sản phẩm</strong> và <strong>mô tả</strong> ở trên.
+                </p>
+                <p class="text-xs mt-1 hidden" id="f-seo-group-note" style="color:#b7770d;"></p>
+              </div>
+
+              <div>
+                <label class="form-label">Tiêu đề</label>
+                <input type="text" id="f-seoTitle" class="form-input" maxlength="200" />
+                <p class="seo-counter mt-1"><span id="f-seoTitle-count">0</span>/70</p>
+              </div>
+
+              <div>
+                <label class="form-label">Mô tả</label>
+                <textarea id="f-seoDesc" class="form-textarea" rows="3" maxlength="500"></textarea>
+                <p class="seo-counter mt-1"><span id="f-seoDesc-count">0</span>/160</p>
+              </div>
+
+              <div>
+                <label class="form-label">Đường dẫn</label>
+                <input type="text" id="f-slug" class="form-input" placeholder="tu-dong-tao-tu-ten-san-pham" />
+                <p class="seo-counter mt-1">https://bunquayphuquoc.com/mon/<strong id="f-slug-preview" style="color:#374151;"></strong></p>
+              </div>
+            </div>
+
             <div class="flex gap-2">
               <button type="submit" class="btn-admin">💾 Lưu</button>
               <button type="button" id="btn-cancel" class="btn-admin-secondary">Hủy</button>
@@ -123,13 +152,17 @@
   <script>
     const TAGS = ["Bán chạy", "Mới", "Yêu thích", "Đặc biệt", ""];
     const EMOJIS = ["🍜", "🦀", "🦑", "🍤", "🥤", "🧃", "🐟", "🦐", "🥗", "🍵", "🍱", "🫙"];
-    const EMPTY = { emoji: "🍜", name: "", desc: "", price: "", tag: "", available: true };
+    const EMPTY = { emoji: "🍜", name: "", desc: "", price: "", tag: "", group: "", available: true, slug: "", seoTitle: "", seoDesc: "" };
+
+    const SEO_LIMITS = { seoTitle: 70, seoDesc: 160 };
 
     const PAGE_SIZE = 10;
     let currentPage = 1;
     let searchQuery = "";
     let currentUser = null;
     let editingId = null;
+    // Admin đã tự gõ Đường dẫn chưa? Nếu chưa thì slug bám theo tên sản phẩm.
+    let slugTouched = false;
 
     document.addEventListener("DOMContentLoaded", () => {
       currentUser = initAdminLayout("thuc-don.html");
@@ -154,6 +187,26 @@
           updateIconPreview();
         });
       });
+
+      // ── Phần SEO ──────────────────────────────────────────────
+      // Chưa tự gõ Đường dẫn thì slug chạy theo tên sản phẩm (nhóm > tên món).
+      ["f-name", "f-group"].forEach((id) => {
+        document.getElementById(id).addEventListener("input", () => {
+          if (!slugTouched) updateSlugPreview();
+          else updateGroupNote();
+        });
+      });
+      const slugInput = document.getElementById("f-slug");
+      slugInput.addEventListener("input", () => { slugTouched = true; updateSlugPreview(); });
+      // Gõ xong mới chuẩn hoá, để không cắt dấu "-" ngay khi đang gõ.
+      slugInput.addEventListener("blur", () => {
+        const cleaned = slugify(slugInput.value);
+        if (slugInput.value !== cleaned) slugInput.value = cleaned;
+        if (!cleaned) slugTouched = false;
+        updateSlugPreview();
+      });
+      document.getElementById("f-seoTitle").addEventListener("input", () => updateSeoCounter("f-seoTitle"));
+      document.getElementById("f-seoDesc").addEventListener("input", () => updateSeoCounter("f-seoDesc"));
 
       document.getElementById("f-emoji").addEventListener("input", () => {
         highlightEmoji();
@@ -198,6 +251,10 @@
           price: document.getElementById("f-price").value.trim(),
           tag: document.getElementById("f-tag").value,
           group: document.getElementById("f-group").value.trim(),
+          seoTitle: document.getElementById("f-seoTitle").value.trim(),
+          seoDesc: document.getElementById("f-seoDesc").value.trim(),
+          // Để trống -> db.menu tự sinh slug từ tên sản phẩm (và tránh trùng).
+          slug: slugify(document.getElementById("f-slug").value),
           available: document.getElementById("f-available").checked,
         };
         if (!data.name) {
@@ -238,6 +295,45 @@
       }
     }
 
+    /* Bộ đếm ký tự: quá ngưỡng khuyến nghị thì đổi màu cảnh báo, nhưng
+       vẫn cho lưu (Google chỉ cắt bớt chứ không báo lỗi). */
+    function updateSeoCounter(fieldId) {
+      const input = document.getElementById(fieldId);
+      const counter = document.getElementById(fieldId + "-count");
+      if (!input || !counter) return;
+      const len = input.value.trim().length;
+      counter.textContent = len;
+      counter.parentElement.classList.toggle("over", len > SEO_LIMITS[fieldId.replace("f-", "")]);
+    }
+
+    /* Tên sản phẩm = tên nhóm nếu có biến thể, không thì tên món. */
+    function currentProductName() {
+      return document.getElementById("f-group").value.trim()
+          || document.getElementById("f-name").value.trim();
+    }
+
+    /* URL và thẻ SEO thuộc về SẢN PHẨM: món trong cùng nhóm dùng chung.
+       Nói rõ điều đó để admin không tưởng mình chỉ sửa 1 biến thể. */
+    function updateGroupNote() {
+      const group = document.getElementById("f-group").value.trim();
+      const note = document.getElementById("f-seo-group-note");
+      if (!note) return;
+      if (!group) { note.classList.add("hidden"); return; }
+      const n = db.menu.getAll().filter((m) => (m.group || "").trim() === group).length;
+      note.textContent = n > 1
+        ? `⚠️ Áp dụng cho cả ${n} biến thể của nhóm "${group}" — chúng dùng chung một URL và một thẻ SEO.`
+        : `Áp dụng cho nhóm "${group}". Thêm biến thể mới vào nhóm này sẽ dùng chung URL và thẻ SEO ở đây.`;
+      note.classList.remove("hidden");
+    }
+
+    /* Đường dẫn thật sự sẽ dùng: ô Đường dẫn, không có thì suy từ tên sản phẩm. */
+    function updateSlugPreview() {
+      const typed = slugify(document.getElementById("f-slug").value);
+      const derived = slugify(currentProductName());
+      document.getElementById("f-slug-preview").textContent = typed || derived || "…";
+      updateGroupNote();
+    }
+
     function openForm(item) {
       editingId = item ? item.id : null;
       const heading = document.getElementById("form-heading");
@@ -250,6 +346,13 @@
       document.getElementById("f-price").value = data.price || "";
       document.getElementById("f-tag").value = data.tag || "";
       document.getElementById("f-group").value = data.group || "";
+      document.getElementById("f-seoTitle").value = data.seoTitle || "";
+      document.getElementById("f-seoDesc").value = data.seoDesc || "";
+      document.getElementById("f-slug").value = data.slug || "";
+      slugTouched = Boolean(data.slug);
+      updateSeoCounter("f-seoTitle");
+      updateSeoCounter("f-seoDesc");
+      updateSlugPreview();
       document.getElementById("f-available").checked = data.available !== false;
 
       // Gợi ý các nhóm đã có
@@ -324,6 +427,7 @@
               <div class="font-medium text-gray-700">${escapeHtml(item.name)}</div>
               ${item.tag ? `<span class="badge badge-blue">${escapeHtml(item.tag)}</span>` : ""}
               <div class="text-xs text-gray-400">${escapeHtml(item.desc || "")}</div>
+              <a href="${escapeHtml(menuUrl(item))}" target="_blank" rel="noopener" class="text-xs" style="color:#e07b39;">${escapeHtml(menuUrl(item))} ↗</a>
             </td>
             <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(item.price || "")}</td>
             <td>${availBadge}</td>

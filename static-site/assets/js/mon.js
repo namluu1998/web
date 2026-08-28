@@ -1,15 +1,36 @@
 /* ===================================================================
-   mon.js — trang chi tiết 1 sản phẩm (mon.html / mon.php?id=...)
+   mon.js — trang chi tiết 1 sản phẩm
    Hỗ trợ sản phẩm có nhiều BIẾN THỂ (cùng "group") — chọn loại → đổi giá.
+
+   URL chuẩn:  /mon/<slug>     slug của SẢN PHẨM, không phải của từng
+                               biến thể — 3 biến thể dùng chung 1 URL
+                               nên không sinh trang trùng nội dung.
+   URL cũ:     /mon?id=<id>    vẫn mở đúng sản phẩm để link/bookmark/
+                               kết quả Google cũ không gãy.
 =================================================================== */
+
+/* Đọc "khoá" sản phẩm từ URL: slug trong đường dẫn, hoặc id/slug trên
+   query string (mon.php cũng nhận ?slug= khi .htaccess rewrite). */
+function readMonRoute() {
+  const params = new URLSearchParams(window.location.search);
+  const path = window.location.pathname.replace(/\/+$/, "");
+  const matched = path.match(/\/mon(?:\.html|\.php)?\/(.+)$/);
+  let slugFromPath = "";
+  if (matched) {
+    try { slugFromPath = decodeURIComponent(matched[1]); }
+    catch (e) { slugFromPath = matched[1]; }
+  }
+  return { id: params.get("id") || "", slug: params.get("slug") || slugFromPath };
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
   await window.dbReady;
   const settings = db.settings.get();
   initCommonUI(settings);
 
-  const id = new URLSearchParams(window.location.search).get("id");
-  const item = id ? db.menu.getById(id) : null;
+  const route = readMonRoute();
+  let item = route.slug ? db.menu.getBySlug(route.slug) : null;
+  if (!item && route.id) item = db.menu.getById(route.id);
   const detail = document.getElementById("mon-detail");
 
   if (!item) {
@@ -29,12 +50,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   const group = (item.group || "").trim();
 
   // Các biến thể = cùng group (còn phục vụ). Không group → 1 món đơn.
-  let variants = group
-    ? db.menu.getAvailable().filter((m) => (m.group || "").trim() === group)
-    : [item];
-  if (!variants.length) variants = [item];
+  const variants = db.menu.getVariants(item);
   const isMulti = variants.length > 1;
-  const productName = group || item.name;
+  const productName = menuProductName(item);
+
+  /* URL chuẩn của sản phẩm. Vào bằng /mon?id=... hay bằng slug cũ thì
+     dọn thanh địa chỉ về đây (không tải lại trang); redirect 301 thật
+     nằm ở mon.php để bot tìm kiếm cũng thấy đúng URL chuẩn. */
+  const canonicalPath = menuUrl(item);
+  const pageUrl = SITE_URL + canonicalPath;
+  if (window.location.pathname + window.location.search !== canonicalPath) {
+    try { history.replaceState(null, "", canonicalPath); } catch (e) {}
+  }
+
+  /* Thẻ SEO / mạng xã hội: ưu tiên Tiêu đề + Mô tả admin nhập trong
+     phần SEO của sản phẩm, để trống thì suy từ tên sản phẩm và mô tả. */
+  const seoTitle = menuSeoTitle(item, site);
+  const seoDesc = menuSeoDesc(item);
+  const ogImage = isImageValue(item.emoji)
+    ? (item.emoji.indexOf("http") === 0 || item.emoji.indexOf("data:") === 0 ? item.emoji : SITE_URL + item.emoji)
+    : (settings.ogImage || SITE_URL + "/uploads/1780645751588-lekzpy.png");
+
+  const setMeta = (id, attr, value) => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute(attr, value);
+  };
+  setMeta("page-description", "content", seoDesc);
+  setMeta("page-canonical", "href", pageUrl);
+  setMeta("og-title", "content", seoTitle);
+  setMeta("og-description", "content", seoDesc);
+  setMeta("og-url", "content", pageUrl);
+  setMeta("og-image", "content", ogImage);
+  setMeta("twitter-title", "content", seoTitle);
+  setMeta("twitter-description", "content", seoDesc);
+  setMeta("twitter-image", "content", ogImage);
 
   // Nhãn biến thể = bỏ tiền tố tên nhóm khỏi tên món.
   const variantLabel = (v) => {
@@ -48,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     : `<div class="flex items-center justify-center w-full h-full text-8xl" style="background:linear-gradient(135deg,#fde8d0,#fff7ed);">${v.emoji || "🍜"}</div>`;
 
   document.getElementById("breadcrumb-name").textContent = productName;
-  document.getElementById("page-title").textContent = productName + " Phú Quốc | " + site;
+  document.getElementById("page-title").textContent = seoTitle;
 
   let cur = item; // biến thể đang chọn
 
@@ -77,7 +126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <p class="mt-4 text-[15px] leading-8 text-gray-600 whitespace-pre-line">${escapeHtml(cur.desc || "")}</p>
           ${variantBtns}
           <div class="mt-6 flex flex-col sm:flex-row gap-3">
-            <a id="mon-order" href="index.html#lien-he" class="px-6 py-3 rounded-full text-sm font-semibold text-white text-center" style="background-color:#e07b39;">🍜 Đặt món này</a>
+            <a id="mon-order" href="/#lien-he" class="px-6 py-3 rounded-full text-sm font-semibold text-white text-center" style="background-color:#e07b39;">🍜 Đặt món này</a>
             <a href="tel:${escapeHtml(telPhone)}" class="px-6 py-3 rounded-full text-sm font-semibold text-white text-center" style="background-color:#25d366;">📞 Gọi đặt ngay</a>
           </div>
           <div class="mt-6 rounded-xl bg-gray-50 border border-gray-100 p-4 text-sm text-gray-600 space-y-1.5">
@@ -101,16 +150,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   renderDetail();
 
-  // "Món khác" = các SẢN PHẨM khác (khác group), 1 đại diện mỗi sản phẩm.
-  const seen = {};
-  seen[group || ("__" + item.id)] = true;
-  const others = [];
-  db.menu.getAvailable().forEach((m) => {
-    const k = (m.group || "").trim() || ("__" + m.id);
-    if (seen[k]) return;
-    seen[k] = true;
-    others.push(m);
-  });
+  // "Món khác" = các SẢN PHẨM khác, 1 đại diện mỗi sản phẩm.
+  const thisKey = menuGroupKey(item);
+  const others = db.menu.getProducts().filter((m) => menuGroupKey(m) !== thisKey);
   if (others.length) {
     const wrap = document.getElementById("mon-related-wrap");
     const grid = document.getElementById("mon-related");
@@ -119,7 +161,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<img src="${escapeHtml(m.emoji)}" alt="${escapeHtml(m.name)}" class="w-full h-28 object-contain bg-orange-50" />`
         : `<div class="w-full h-28 flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#fde8d0,#fff7ed);">${m.emoji || "🍜"}</div>`;
       const nm = (m.group || "").trim() || m.name;
-      return `<a href="mon?id=${encodeURIComponent(m.id)}" class="group block rounded-xl overflow-hidden border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all">
+      return `<a href="${escapeHtml(menuUrl(m))}" class="group block rounded-xl overflow-hidden border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all">
         ${v}
         <div class="p-3">
           <p class="text-sm font-semibold leading-snug group-hover:text-[#e07b39] transition-colors" style="color:#1a5276;">${escapeHtml(nm)}</p>
@@ -144,10 +186,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       "@context": "https://schema.org",
       "@type": isMulti ? "Product" : "MenuItem",
       name: productName,
-      description: item.desc || "",
-      url: "https://bunquayphuquoc.com/mon?id=" + encodeURIComponent(id),
+      description: seoDesc,
+      url: pageUrl,
     };
-    if (isImageValue(item.emoji)) schema.image = item.emoji.indexOf("http") === 0 ? item.emoji : "https://bunquayphuquoc.com" + item.emoji;
+    if (isImageValue(item.emoji)) schema.image = ogImage;
     schema.offers = isMulti ? variants.map(offer) : offer(item);
     schemaEl.textContent = JSON.stringify(schema);
   }

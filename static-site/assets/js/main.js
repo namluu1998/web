@@ -134,7 +134,7 @@ function renderMenu() {
     const tagItem = g.items.find((it) => it.tag);
 
     const a = document.createElement("a");
-    a.href = "mon?id=" + encodeURIComponent(first.id);
+    a.href = menuUrl(first);
     a.className = "group flex min-h-[310px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#e07b39]/40 no-underline";
     a.innerHTML = `
       ${menuVisualHtml(first, "card")}

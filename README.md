@@ -36,10 +36,16 @@ npm.cmd run build
 
 ## Dish URLs, per-dish SEO, and Code Scripts (`static-site/`)
 
-Dish detail pages use slug URLs: `/mon/<slug>` (previously `/mon?id=<id>`).
+Menu rows sharing a `group` are variants of one product, so a slug identifies a
+**product**, not a variant row — the three Bún Quậy sizes share
+`/mon/bun-quay-phu-quoc` instead of getting three URLs with the same content.
+Product pages use slug URLs: `/mon/<slug>` (previously `/mon?id=<id>`).
 
 - The slug comes from **Thực đơn → sửa món → SEO → Đường dẫn**; leave it blank and
-  it is generated from the dish name (`Bún Quậy Phú Quốc` → `bun-quay-phu-quoc`).
+  it is generated from the product name — the group when there is one, otherwise
+  the dish name (`Bún Quậy Phú Quốc` → `bun-quay-phu-quoc`).
+- Editing SEO on any variant writes it to every variant in the group, so the
+  product keeps one URL and one set of tags however you reach it.
 - The same SEO block sets the **Tiêu đề** and **Mô tả** used for `<title>`,
   `meta[description]`, Open Graph, Twitter cards, and JSON-LD.
 - Old URLs keep working: `/mon?id=<id>` still resolves, and the previous slug is

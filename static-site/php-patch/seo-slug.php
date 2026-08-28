@@ -61,22 +61,39 @@ function bq_slugify($str)
 }
 
 /**
- * Slug công khai của 1 món: ưu tiên "Đường dẫn" admin đặt trong phần
- * SEO, không có thì sinh từ tên món, cuối cùng mới rơi về id.
- * Nhờ vậy các món cũ (chưa có trường slug trong DB) vẫn có URL đẹp
- * mà không cần chạy migration.
+ * Khoá gom nhóm: tên group, hoặc chính id nếu là món độc lập.
+ * Các dòng menu cùng group là BIẾN THỂ của một sản phẩm.
+ */
+function bq_group_key($item)
+{
+    $g = trim(isset($item['group']) ? $item['group'] : '');
+    return $g !== '' ? $g : ('__id__' . (isset($item['id']) ? (string) $item['id'] : ''));
+}
+
+/** Tên sản phẩm: tên nhóm nếu có biến thể, không thì tên món. */
+function bq_product_name($item)
+{
+    $g = trim(isset($item['group']) ? $item['group'] : '');
+    return $g !== '' ? $g : trim(isset($item['name']) ? $item['name'] : '');
+}
+
+/**
+ * Slug công khai của SẢN PHẨM: ưu tiên "Đường dẫn" admin đặt trong phần
+ * SEO, không có thì sinh từ tên sản phẩm, cuối cùng mới rơi về id.
+ * Các món cũ (chưa có trường slug trong DB) vẫn có URL đẹp mà không
+ * cần chạy migration.
  */
 function bq_menu_slug($item)
 {
     if (!$item) return '';
     $fromSlug = bq_slugify(isset($item['slug']) ? $item['slug'] : '');
     if ($fromSlug !== '') return $fromSlug;
-    $fromName = bq_slugify(isset($item['name']) ? $item['name'] : '');
+    $fromName = bq_slugify(bq_product_name($item));
     if ($fromName !== '') return $fromName;
     return isset($item['id']) ? (string) $item['id'] : '';
 }
 
-/** Đường dẫn công khai (phần path) của 1 món. */
+/** Đường dẫn công khai (phần path) của 1 sản phẩm. */
 function bq_menu_url($item)
 {
     $slug = bq_menu_slug($item);
@@ -91,22 +108,40 @@ function bq_menu_abs_url($item)
     return BQ_SITE_URL . bq_menu_url($item);
 }
 
+/** Các biến thể cùng sản phẩm, giữ nguyên thứ tự thực đơn. */
+function bq_menu_variants($menu, $item)
+{
+    if (!$item) return array();
+    $key = bq_group_key($item);
+    $out = array();
+    foreach ($menu as $m) {
+        if (bq_group_key($m) === $key) $out[] = $m;
+    }
+    return $out ? $out : array($item);
+}
+
 /**
- * Tìm món theo slug (URL mới) hoặc id (URL cũ).
- * $menu là mảng các món đã decode từ cột `menu`.`data`.
+ * Tìm sản phẩm theo slug (URL mới) hoặc id (URL cũ).
+ * Trả về biến thể còn phục vụ đầu tiên, để trang mở ra đúng loại khách
+ * mua được. $menu là mảng các món đã decode từ cột `menu`.`data`.
  */
 function bq_menu_find($menu, $slug, $id)
 {
     $wantSlug = bq_slugify($slug);
     if ($wantSlug !== '') {
-        foreach ($menu as $item) {
-            if (bq_menu_slug($item) === $wantSlug) return $item;
-        }
-        // Slug cũ: admin đổi "Đường dẫn" thì slug trước đó được lưu lại
-        // trong slugAliases để link đã share / đã index không chết.
-        foreach ($menu as $item) {
-            $aliases = isset($item['slugAliases']) && is_array($item['slugAliases']) ? $item['slugAliases'] : array();
-            if (in_array($wantSlug, $aliases, true)) return $item;
+        // Ưu tiên biến thể còn phục vụ, rồi mới tới bất kỳ biến thể nào.
+        foreach (array(true, false) as $onlyAvailable) {
+            foreach ($menu as $item) {
+                if ($onlyAvailable && empty($item['available'])) continue;
+                if (bq_menu_slug($item) === $wantSlug) return $item;
+            }
+            // Slug cũ: admin đổi "Đường dẫn" thì slug trước đó nằm trong
+            // slugAliases để link đã share / đã index không chết.
+            foreach ($menu as $item) {
+                if ($onlyAvailable && empty($item['available'])) continue;
+                $aliases = isset($item['slugAliases']) && is_array($item['slugAliases']) ? $item['slugAliases'] : array();
+                if (in_array($wantSlug, $aliases, true)) return $item;
+            }
         }
     }
     $id = (string) $id;
@@ -118,13 +153,32 @@ function bq_menu_find($menu, $slug, $id)
     return null;
 }
 
+/** Danh sách SẢN PHẨM (mỗi nhóm 1 đại diện) — dùng cho sitemap. */
+function bq_menu_products($menu, $availableOnly = true)
+{
+    $seen = array();
+    $out = array();
+    foreach ($menu as $m) {
+        if ($availableOnly && empty($m['available'])) continue;
+        $k = bq_group_key($m);
+        if (isset($seen[$k])) continue;
+        $seen[$k] = true;
+        $out[] = $m;
+    }
+    return $out;
+}
+
 /** Tiêu đề hiển thị trên Google / khi share. */
 function bq_menu_seo_title($item, $siteName)
 {
     $custom = trim(isset($item['seoTitle']) ? $item['seoTitle'] : '');
     if ($custom !== '') return $custom;
-    $name = trim(isset($item['name']) ? $item['name'] : '');
-    return $siteName ? $name . ' | ' . $siteName : $name;
+    $name = bq_product_name($item);
+    if ($name === '') return (string) $siteName;
+    // Chỉ chèn "Phú Quốc" khi tên chưa có sẵn, tránh lặp thành
+    // "Bún Quậy Phú Quốc Phú Quốc | ..." như bản đang chạy.
+    $withPlace = preg_match('/phú quốc/iu', $name) ? $name : $name . ' Phú Quốc';
+    return $siteName ? $withPlace . ' | ' . $siteName : $withPlace;
 }
 
 /** Mô tả meta; để trống thì cắt gọn từ mô tả món (~160 ký tự). */
