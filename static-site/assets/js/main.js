@@ -110,7 +110,7 @@ function renderMenu() {
 
   items.forEach((item) => {
     const a = document.createElement("a");
-    a.href = "mon?id=" + encodeURIComponent(item.id);
+    a.href = menuUrl(item);
     a.className = "group flex min-h-[310px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#e07b39]/40 no-underline";
     a.innerHTML = `
       ${menuVisualHtml(item, "card")}

@@ -151,6 +151,59 @@ function isVideoValue(val) {
   return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(val) || val.startsWith("data:video/");
 }
 
+// ── Site URL & slug (URL thân thiện SEO: /mon/<slug>) ─────────────
+const SITE_URL = "https://bunquayphuquoc.com";
+
+/* Bỏ dấu tiếng Việt và chuyển về kebab-case an toàn cho URL.
+   "Bún Quậy Phú Quốc" -> "bun-quay-phu-quoc" */
+function slugify(str) {
+  return String(str === null || str === undefined ? "" : str)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/Đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+}
+
+/* Slug công khai của 1 món: ưu tiên "Đường dẫn" admin tự đặt trong
+   phần SEO, không có thì sinh từ tên món, cuối cùng mới rơi về id.
+   Nhờ vậy các món cũ (chưa có trường slug trong DB) vẫn có URL đẹp
+   mà không cần chạy migration. */
+function menuSlug(item) {
+  if (!item) return "";
+  return slugify(item.slug) || slugify(item.name) || String(item.id || "");
+}
+
+/* Đường dẫn công khai của 1 món — dùng chung cho trang chủ, trang chi
+   tiết, sitemap và schema, để mọi nơi luôn trỏ về cùng một URL. */
+function menuUrl(item) {
+  const slug = menuSlug(item);
+  if (slug) return "/mon/" + encodeURIComponent(slug);
+  return "/mon?id=" + encodeURIComponent(String((item && item.id) || ""));
+}
+
+/* Tiêu đề / mô tả hiển thị trên Google & khi share:
+   lấy từ tab SEO của món, để trống thì tự suy ra từ tên món + mô tả. */
+function menuSeoTitle(item, siteName) {
+  const custom = String((item && item.seoTitle) || "").trim();
+  if (custom) return custom;
+  const name = String((item && item.name) || "").trim();
+  return siteName ? name + " | " + siteName : name;
+}
+
+function menuSeoDesc(item, limit) {
+  const max = limit || 160;
+  const custom = String((item && item.seoDesc) || "").trim();
+  if (custom) return custom;
+  const raw = String((item && item.desc) || "").replace(/\s+/g, " ").trim();
+  if (raw.length <= max) return raw;
+  const cut = raw.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,;:.\-]+$/, "") + "…";
+}
+
 // ── db.* CRUD ─────────────────────────────────────────────────────
 const db = {
   posts: {
@@ -201,12 +254,38 @@ const db = {
     getAll()       { return [..._mem.menu]; },
     getAvailable() { return _mem.menu.filter((m) => m.available); },
     getById(id)    { return _mem.menu.find((m) => String(m.id) === String(id)) || null; },
+    /* Tra món theo đường dẫn /mon/<slug>. So sánh bằng menuSlug() nên
+       khớp cả món chưa có trường slug (slug suy ra từ tên món).
+       Không thấy thì thử tới các slug cũ, để link đã share / đã được
+       Google index không chết khi admin đổi Đường dẫn. */
+    getBySlug(slug) {
+      const want = slugify(slug);
+      if (!want) return null;
+      const exact = _mem.menu.find((m) => menuSlug(m) === want);
+      if (exact) return exact;
+      return _mem.menu.find((m) => (m.slugAliases || []).indexOf(want) !== -1) || null;
+    },
+    /* Slug phải là duy nhất trong thực đơn; trùng thì thêm -2, -3, ... */
+    uniqueSlug(desired, excludeId) {
+      const base = slugify(desired) || "mon";
+      let slug = base;
+      let n = 2;
+      while (_mem.menu.some((m) => String(m.id) !== String(excludeId) && menuSlug(m) === slug)) {
+        slug = base + "-" + n;
+        n += 1;
+      }
+      return slug;
+    },
     create(data) {
       const item = {
         id: uid(), emoji: data.emoji || "🍜", name: data.name || "",
         desc: data.desc || "", price: data.price || "", tag: data.tag || "",
         available: data.available !== undefined ? data.available : true,
+        slug: "",
+        seoTitle: String(data.seoTitle || "").trim(),
+        seoDesc: String(data.seoDesc || "").trim(),
       };
+      item.slug = this.uniqueSlug(String(data.slug || "").trim() || item.name, item.id);
       _mem.menu.push(item);
       if (_useAPI) _apiPost("menu", "create", null, item);
       else writeJSON(DB_KEYS.menu, _mem.menu);
@@ -215,7 +294,23 @@ const db = {
     update(id, data) {
       const idx = _mem.menu.findIndex((m) => String(m.id) === String(id));
       if (idx === -1) return null;
-      _mem.menu[idx] = { ..._mem.menu[idx], ...data };
+      const next = { ..._mem.menu[idx], ...data };
+      /* Chỉ tính lại slug khi form thực sự gửi lên slug/tên món, để các
+         thao tác nhanh (bật/tắt "Còn hàng", sắp xếp) không đổi URL. */
+      const has = (k) => Object.prototype.hasOwnProperty.call(data, k);
+      if (has("slug") || has("name")) {
+        const previous = menuSlug(_mem.menu[idx]);
+        next.slug = has("slug")
+          ? this.uniqueSlug(String(data.slug || "").trim() || next.name, id)
+          : this.uniqueSlug(next.slug || next.name, id);
+        if (previous && previous !== next.slug) {
+          // Giữ tối đa 5 slug cũ gần nhất để /mon/<slug-cũ> vẫn mở được.
+          next.slugAliases = [previous]
+            .concat((next.slugAliases || []).filter((a) => a !== previous && a !== next.slug))
+            .slice(0, 5);
+        }
+      }
+      _mem.menu[idx] = next;
       if (_useAPI) _apiPost("menu", "update", id, _mem.menu[idx]);
       else writeJSON(DB_KEYS.menu, _mem.menu);
       return _mem.menu[idx];

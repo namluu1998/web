@@ -621,6 +621,28 @@ body.mobile-menu-open {
   color: #374151;
 }
 
+/* Ô dán snippet (Cài đặt → Code Scripts): chữ đều, xuống dòng theo
+   đúng ký tự để đọc/soát code dễ hơn ô text thường. */
+.code-script-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+/* Bộ đếm ký tự của phần SEO món ăn (Thực đơn → sửa món). */
+.seo-counter {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.seo-counter.over {
+  color: #b7770d;
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------
    Toast / alert
 --------------------------------------------------------------- */

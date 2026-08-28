@@ -4,15 +4,17 @@
    scroll progress, open status, escapeHtml)
 =================================================================== */
 
-/* ── Google Analytics (GA4) ────────────────────────────────────────
-   Dán Mã đo lường GA4 của bạn (dạng G-XXXXXXXXXX) vào GA_ID bên dưới.
-   Lấy tại: Google Analytics → Admin → Data Streams → chọn stream web.
-   Để nguyên placeholder thì GA sẽ KHÔNG chạy (an toàn). Bỏ qua trang
-   /admin/ để không đo hoạt động quản trị. */
-(function initGoogleAnalytics() {
-  var GA_ID = "G-YV1EPT03E5"; // <-- DÁN MÃ GA4 CỦA BẠN VÀO ĐÂY
+/* ── Google Analytics (GA4) mặc định ───────────────────────────────
+   Mã GA4 dự phòng khi Cài đặt → Code Scripts chưa có snippet Google
+   Analytics nào. Để nguyên placeholder thì GA sẽ KHÔNG chạy (an toàn).
+   Bỏ qua trang /admin/ để không đo hoạt động quản trị.
+   Hàm này được initCommonUI() gọi sau khi đã đọc được settings, nên
+   không chạy trùng với snippet admin tự dán. */
+var GA_ID = "G-YV1EPT03E5"; // <-- DÁN MÃ GA4 CỦA BẠN VÀO ĐÂY
+
+function initGoogleAnalytics() {
   if (!GA_ID || GA_ID === "G-XXXXXXXXXX" || GA_ID.indexOf("G-") !== 0) return;
-  if (location.pathname.indexOf("/admin/") !== -1) return;
+  if (isAdminArea()) return;
 
   var s = document.createElement("script");
   s.async = true;
@@ -24,7 +26,56 @@
   window.gtag = gtag;
   gtag("js", new Date());
   gtag("config", GA_ID);
-})();
+}
+
+/* ── Code Scripts (Cài đặt → 🧩 Code Scripts) ──────────────────────
+   Các đoạn Javascript/CSS admin dán trong trang quản trị được chèn
+   vào <head> của mọi trang công khai. Khu /admin/ luôn được bỏ qua để
+   pixel/livechat không chạy trên trang quản trị. */
+const CODE_SCRIPT_FIELDS = [
+  { key: "scriptGoogleAnalytics",  label: "google-analytics" },
+  { key: "scriptGoogleRemarketing", label: "google-remarketing" },
+  { key: "scriptFacebookPixel",    label: "facebook-pixel" },
+  { key: "scriptLivechat",         label: "livechat" },
+];
+
+let _codeScriptsInjected = false;
+
+function isAdminArea() {
+  const path = location.pathname;
+  return path.indexOf("/admin/") !== -1 || path === "/admin" || /\/admin$/.test(path);
+}
+
+function injectCodeScripts(settings) {
+  if (_codeScriptsInjected || isAdminArea()) return;
+  _codeScriptsInjected = true;
+
+  CODE_SCRIPT_FIELDS.forEach(function (field) {
+    const markup = String((settings && settings[field.key]) || "").trim();
+    if (markup) appendMarkupToHead(markup, field.label);
+  });
+}
+
+/* Gán markup qua innerHTML sẽ KHÔNG chạy <script>; phải tạo lại từng
+   thẻ script rồi mới append thì trình duyệt mới thực thi. */
+function appendMarkupToHead(markup, label) {
+  const holder = document.createElement("div");
+  holder.innerHTML = markup;
+
+  Array.prototype.slice.call(holder.childNodes).forEach(function (node) {
+    if (node.nodeType !== 1) return; // bỏ text/comment thừa giữa các thẻ
+    let el = node;
+    if (node.tagName === "SCRIPT") {
+      el = document.createElement("script");
+      for (let i = 0; i < node.attributes.length; i++) {
+        el.setAttribute(node.attributes[i].name, node.attributes[i].value);
+      }
+      el.text = node.textContent;
+    }
+    el.setAttribute("data-code-script", label);
+    document.head.appendChild(el);
+  });
+}
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
@@ -207,6 +258,12 @@ function renderGalleryLightboxFrame() {
 function initCommonUI(settings) {
   const s = settings || db.settings.get();
   const telPhone = (s.phone || "").replace(/\s+/g, "");
+
+  /* Code Scripts của admin chạy trước phần còn lại để pixel/analytics
+     ghi nhận lượt xem sớm nhất có thể. Nếu admin đã dán snippet GA
+     riêng thì bỏ qua mã GA mặc định để không đếm trùng lượt xem. */
+  injectCodeScripts(s);
+  if (!String(s.scriptGoogleAnalytics || "").trim()) initGoogleAnalytics();
 
   /* Navbar */
   const navName = document.getElementById("nav-site-name");

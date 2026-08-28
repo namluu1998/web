@@ -23,9 +23,16 @@ const MIME = {
   ".m4v": "video/mp4",
 };
 
+// Đường dẫn đẹp của trang chi tiết món: /mon/<slug> -> mon.html
+// (trên production .htaccess rewrite sang mon.php, xem php-patch/).
+function rewritePath(urlPath) {
+  if (urlPath === "/") return "/index.html";
+  if (/^\/mon\/[^/]+\/?$/.test(urlPath)) return "/mon.html";
+  return urlPath;
+}
+
 http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(req.url.split("?")[0]);
-  if (urlPath === "/") urlPath = "/index.html";
+  let urlPath = rewritePath(decodeURIComponent(req.url.split("?")[0]));
   let filePath = path.join(ROOT, urlPath);
 
   fs.readFile(filePath, (err, data) => {
