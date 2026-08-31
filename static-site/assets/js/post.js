@@ -391,15 +391,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("post-meta-date").textContent = `📅 ${post.date}`;
   setText("post-meta-views", post.views);
 
-  document.getElementById("post-title").textContent = post.title;
+  /* Bài dùng "trang HTML độc lập": trang được nhúng đã có sẵn tiêu đề,
+     mô tả và ảnh hero của riêng nó. Nếu site render thêm phần header
+     của mình nữa thì mọi thứ hiện hai lần. Ẩn phần nhìn thấy được,
+     nhưng vẫn giữ <h1> (ẩn với mắt, không ẩn với Google/trình đọc màn
+     hình) vì nội dung trong iframe là tài liệu riêng, không tính là
+     h1 của trang này. */
+  const trangDocLap = Boolean(post.htmlFileUrl);
 
-  if (post.excerpt) {
+  const titleEl = document.getElementById("post-title");
+  titleEl.textContent = post.title;
+  if (trangDocLap) titleEl.classList.add("sr-only");
+
+  if (post.excerpt && !trangDocLap) {
     const excerptEl = document.getElementById("post-excerpt");
     excerptEl.textContent = post.excerpt;
     excerptEl.classList.remove("hidden");
   }
 
-  if (isImageValue(post.emoji)) {
+  if (isImageValue(post.emoji) && !trangDocLap) {
     document.getElementById("post-cover-img").src = post.emoji;
     document.getElementById("post-cover-img").alt = post.title;
     document.getElementById("post-cover-caption").textContent = post.title;

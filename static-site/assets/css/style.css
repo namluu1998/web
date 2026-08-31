@@ -621,6 +621,20 @@ body.mobile-menu-open {
   color: #374151;
 }
 
+/* Ẩn khỏi mắt nhưng vẫn để trình đọc màn hình và Google đọc được.
+   Dùng cho <h1> của bài có trang HTML độc lập: trang nhúng đã hiện
+   tiêu đề rồi, nhưng bỏ hẳn h1 thì trang mất tín hiệu SEO. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Ô dán snippet (Cài đặt → Code Scripts): chữ đều, xuống dòng theo
    đúng ký tự để đọc/soát code dễ hơn ô text thường. */
 .code-script-input {
