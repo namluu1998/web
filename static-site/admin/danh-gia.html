@@ -117,7 +117,7 @@
               <label class="form-label">Ảnh đại diện (tùy chọn)</label>
               <div class="space-y-2">
                 <div id="r-photo-preview" class="hidden">
-                  <img id="r-photo-preview-img" src="" alt="" style="width:5rem;height:5rem;object-fit:cover;border-radius:9999px;" />
+                  <img id="r-photo-preview-img" alt="" style="width:5rem;height:5rem;object-fit:cover;border-radius:9999px;" />
                 </div>
                 <div class="flex gap-2">
                   <input type="text" id="r-photo" class="form-input" placeholder="https://..." />
@@ -273,7 +273,8 @@
         img.src = src;
         wrap.classList.remove("hidden");
       } else {
-        img.src = "";
+        // Gán src="" khiến trình duyệt tải lại chính trang này -> gỡ hẳn thuộc tính.
+        img.removeAttribute("src");
         wrap.classList.add("hidden");
       }
     }

@@ -25,6 +25,7 @@ function _apiGetSync(qs) {
 
 // ── Async POST (fire-and-forget, không block UI) ──────────────────
 function _apiPost(entity, action, id, body) {
+  _clearDbCache(); // vừa ghi -> bản chụp trong phiên đã cũ
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   fetch(url, {
@@ -44,6 +45,7 @@ function _apiPost(entity, action, id, body) {
 // message on non-2xx. Used by the public booking form so it can wait for the
 // server's verdict (anti-spam, duplicate slot) before telling the user.
 function _apiPostAwait(entity, action, id, body) {
+  _clearDbCache(); // vừa ghi -> bản chụp trong phiên đã cũ
   let url = _API_URL + "?entity=" + entity + "&action=" + action;
   if (id != null) url += "&id=" + encodeURIComponent(String(id));
   return fetch(url, {
@@ -151,6 +153,111 @@ function isVideoValue(val) {
   return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(val) || val.startsWith("data:video/");
 }
 
+// ── Sản phẩm, slug & SEO ──────────────────────────────────────────
+// Các dòng menu cùng "group" là BIẾN THỂ của một sản phẩm. URL, slug và
+// thẻ SEO gắn với SẢN PHẨM, không phải từng biến thể — nếu mỗi biến thể
+// có URL riêng thì 3 trang sẽ trùng nội dung, đúng thứ Google phạt.
+const SITE_URL = "https://bunquayphuquoc.com";
+
+/* Bỏ dấu tiếng Việt và chuyển về kebab-case an toàn cho URL.
+   "Bún Quậy Phú Quốc" -> "bun-quay-phu-quoc" */
+function slugify(str) {
+  const out = String(str === null || str === undefined ? "" : str)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/Đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (out.length <= 80) return out;
+  // Cắt ở ranh giới từ, đừng để URL kết thúc bằng nửa chữ ("...cho-du-kh").
+  const cut = out.slice(0, 80);
+  const lastDash = cut.lastIndexOf("-");
+  return (lastDash > 40 ? cut.slice(0, lastDash) : cut).replace(/-+$/g, "");
+}
+
+/* Khoá gom nhóm: tên group, hoặc chính id nếu là món độc lập. */
+function menuGroupKey(item) {
+  const g = String((item && item.group) || "").trim();
+  return g || ("__id__" + String((item && item.id) || ""));
+}
+
+/* Tên sản phẩm hiển thị: tên nhóm nếu có biến thể, không thì tên món. */
+function menuProductName(item) {
+  return String((item && item.group) || "").trim() || String((item && item.name) || "").trim();
+}
+
+/* Slug công khai của SẢN PHẨM: ưu tiên "Đường dẫn" admin đặt trong phần
+   SEO, không có thì sinh từ tên sản phẩm, cuối cùng mới rơi về id. Món
+   cũ chưa có trường slug vẫn ra URL đẹp mà không cần migration. */
+function menuSlug(item) {
+  if (!item) return "";
+  return slugify(item.slug) || slugify(menuProductName(item)) || String(item.id || "");
+}
+
+/* Đường dẫn công khai — dùng chung cho trang chủ, trang chi tiết,
+   sitemap và schema để mọi nơi trỏ về đúng một URL cho mỗi sản phẩm. */
+function menuUrl(item) {
+  const slug = menuSlug(item);
+  if (slug) return "/mon/" + encodeURIComponent(slug);
+  return "/mon?id=" + encodeURIComponent(String((item && item.id) || ""));
+}
+
+/* Tiêu đề trên Google / khi share. Để trống ô SEO thì tự dựng từ tên
+   sản phẩm; chỉ chèn thêm "Phú Quốc" khi tên chưa có sẵn, tránh lặp
+   thành "Bún Quậy Phú Quốc Phú Quốc | ...". */
+function menuSeoTitle(item, siteName) {
+  const custom = String((item && item.seoTitle) || "").trim();
+  if (custom) return custom;
+  const name = menuProductName(item);
+  if (!name) return siteName || "";
+  const withPlace = /phú quốc/i.test(name) ? name : name + " Phú Quốc";
+  return siteName ? withPlace + " | " + siteName : withPlace;
+}
+
+/* Cắt gọn một đoạn văn về đúng độ dài thẻ meta, dừng ở ranh giới từ. */
+function trimForMeta(text, max) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (raw.length <= max) return raw;
+  const cut = raw.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,;:.\-]+$/, "") + "…";
+}
+
+function menuSeoDesc(item, limit) {
+  const custom = String((item && item.seoDesc) || "").trim();
+  return custom || trimForMeta(item && item.desc, limit || 160);
+}
+
+// ── Bài viết: slug & SEO ──────────────────────────────────────────
+// Bài viết không có biến thể nên mỗi bài là một URL, đơn giản hơn món.
+
+/* Slug công khai của bài viết: ưu tiên "Đường dẫn" admin đặt trong phần
+   SEO, không có thì sinh từ tiêu đề, cuối cùng mới rơi về id. Bài cũ
+   chưa có trường slug vẫn ra URL đẹp mà không cần migration. */
+function postSlug(post) {
+  if (!post) return "";
+  return slugify(post.slug) || slugify(post.title) || String(post.id || "");
+}
+
+function postUrl(post) {
+  const slug = postSlug(post);
+  if (slug) return "/bai-viet/" + encodeURIComponent(slug);
+  return "/bai-viet?id=" + encodeURIComponent(String((post && post.id) || ""));
+}
+
+function postSeoTitle(post, siteName) {
+  const custom = String((post && post.seoTitle) || "").trim();
+  if (custom) return custom;
+  const title = String((post && post.title) || "").trim();
+  if (!title) return siteName || "";
+  return siteName ? title + " | " + siteName : title;
+}
+
+function postSeoDesc(post, limit) {
+  const custom = String((post && post.seoDesc) || "").trim();
+  return custom || trimForMeta(post && post.excerpt, limit || 160);
+}
+
 // ── db.* CRUD ─────────────────────────────────────────────────────
 const db = {
   posts: {
@@ -160,27 +267,81 @@ const db = {
         .sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
     },
     getById(id) { return _mem.posts.find((p) => String(p.id) === String(id)) || null; },
+
+    /* Tra bài theo đường dẫn /bai-viet/<slug>. So sánh bằng postSlug()
+       nên khớp cả bài chưa có trường slug (slug suy từ tiêu đề). Không
+       thấy thì thử tới slug cũ, để link đã share / đã được Google index
+       không chết khi admin đổi Đường dẫn. */
+    getBySlug(slug) {
+      const want = slugify(slug);
+      if (!want) return null;
+      const hit = (list) => list.find((p) => postSlug(p) === want)
+                         || list.find((p) => (p.slugAliases || []).indexOf(want) !== -1)
+                         || null;
+      return hit(_mem.posts.filter((p) => p.published)) || hit(_mem.posts);
+    },
+
+    /* Slug phải là duy nhất giữa các bài; trùng thì thêm -2, -3, ... */
+    uniqueSlug(desired, excludeId) {
+      const base = slugify(desired) || "bai-viet";
+      let slug = base;
+      let n = 2;
+      while (_mem.posts.some((p) => String(p.id) !== String(excludeId) && postSlug(p) === slug)) {
+        slug = base + "-" + n;
+        n += 1;
+      }
+      return slug;
+    },
+
     create(data) {
       const post = {
+        // Giữ lại mọi trường form gửi lên (htmlFileUrl, ...) rồi mới
+        // chuẩn hoá các trường bắt buộc — trước đây liệt kê cứng nên
+        // bài mới có trang HTML độc lập bị mất luôn đường dẫn file.
+        ...data,
         id: uid(), emoji: data.emoji || "📝", title: data.title || "",
         date: data.date || new Date().toLocaleDateString("vi-VN"),
         views: "0", excerpt: data.excerpt || "", content: data.content || "",
         tag: data.tag || "", tags: data.tags || [],
         published: data.published !== undefined ? data.published : true,
         featured: data.featured || false,
+        seoTitle: String(data.seoTitle || "").trim(),
+        seoDesc: String(data.seoDesc || "").trim(),
+        slug: "",
       };
+      post.slug = this.uniqueSlug(String(data.slug || "").trim() || post.title, post.id);
       _mem.posts.unshift(post);
       if (_useAPI) _apiPost("posts", "create", null, post);
       else writeJSON(DB_KEYS.posts, _mem.posts);
       return post;
     },
+
     update(id, data) {
       const idx = _mem.posts.findIndex((p) => String(p.id) === String(id));
       if (idx === -1) return null;
-      _mem.posts[idx] = { ..._mem.posts[idx], ...data };
-      if (_useAPI) _apiPost("posts", "update", id, _mem.posts[idx]);
+      const before = _mem.posts[idx];
+      const next = { ...before, ...data };
+      const has = (k) => Object.prototype.hasOwnProperty.call(data, k);
+
+      /* Chỉ tính lại slug khi form thực sự gửi slug/tiêu đề, để các thao
+         tác nhanh (ẩn/hiện, đánh dấu nổi bật, tăng lượt xem) không đổi URL. */
+      if (has("slug") || has("title")) {
+        const previous = postSlug(before);
+        next.slug = has("slug")
+          ? this.uniqueSlug(String(data.slug || "").trim() || next.title, id)
+          : this.uniqueSlug(next.slug || next.title, id);
+        if (previous && previous !== next.slug) {
+          // Giữ tối đa 5 slug cũ để /bai-viet/<slug-cũ> vẫn mở được.
+          next.slugAliases = [previous]
+            .concat((next.slugAliases || []).filter((a) => a !== previous && a !== next.slug))
+            .slice(0, 5);
+        }
+      }
+
+      _mem.posts[idx] = next;
+      if (_useAPI) _apiPost("posts", "update", id, next);
       else writeJSON(DB_KEYS.posts, _mem.posts);
-      return _mem.posts[idx];
+      return next;
     },
     remove(id) {
       _mem.posts = _mem.posts.filter((p) => String(p.id) !== String(id));
@@ -201,23 +362,147 @@ const db = {
     getAll()       { return [..._mem.menu]; },
     getAvailable() { return _mem.menu.filter((m) => m.available); },
     getById(id)    { return _mem.menu.find((m) => String(m.id) === String(id)) || null; },
+
+    /* Mỗi SẢN PHẨM một đại diện (biến thể đầu tiên theo thứ tự thực đơn).
+       Dùng cho trang chủ, "Món khác" và sitemap. */
+    getProducts(includeUnavailable) {
+      const src = includeUnavailable ? _mem.menu : _mem.menu.filter((m) => m.available);
+      const seen = {};
+      const out = [];
+      src.forEach((m) => {
+        const key = menuGroupKey(m);
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push(m);
+      });
+      return out;
+    },
+
+    /* Các biến thể cùng sản phẩm, giữ nguyên thứ tự thực đơn. */
+    getVariants(item, includeUnavailable) {
+      if (!item) return [];
+      const key = menuGroupKey(item);
+      const src = includeUnavailable ? _mem.menu : _mem.menu.filter((m) => m.available);
+      const found = src.filter((m) => menuGroupKey(m) === key);
+      return found.length ? found : [item];
+    },
+
+    /* Tra sản phẩm theo /mon/<slug>. Ưu tiên biến thể còn phục vụ để
+       trang chi tiết mở ra đúng loại khách mua được; không thấy thì thử
+       tới slug cũ, để link đã share / đã index không chết. */
+    getBySlug(slug) {
+      const want = slugify(slug);
+      if (!want) return null;
+      const hit = (list) => list.find((m) => menuSlug(m) === want)
+                         || list.find((m) => (m.slugAliases || []).indexOf(want) !== -1)
+                         || null;
+      return hit(_mem.menu.filter((m) => m.available)) || hit(_mem.menu);
+    },
+
+    /* Tập id thuộc cùng một sản phẩm, gom theo một hoặc nhiều nhóm. */
+    ownIds(groupKeys, extraId) {
+      const keys = (groupKeys || []).filter(Boolean);
+      const own = new Set();
+      _mem.menu.forEach((m) => {
+        if (keys.indexOf(menuGroupKey(m)) !== -1) own.add(String(m.id));
+      });
+      if (extraId !== null && extraId !== undefined) own.add(String(extraId));
+      return own;
+    },
+
+    /* Slug phải là duy nhất giữa các SẢN PHẨM. Các biến thể cùng nhóm
+       dùng chung slug nên không tính là trùng.
+       `own` = mọi dòng thuộc chính sản phẩm này, tính cả nhóm CŨ lẫn
+       nhóm MỚI: lúc đổi tên nhóm, các biến thể chưa kịp cập nhật vẫn
+       mang nhóm cũ, không loại ra thì sản phẩm tự va chạm với chính nó
+       và bị thêm hậu tố -2 vô cớ. */
+    uniqueSlug(desired, own) {
+      const base = slugify(desired) || "mon";
+      const mine = own instanceof Set ? own : new Set();
+      let slug = base;
+      let n = 2;
+      while (_mem.menu.some((m) => !mine.has(String(m.id)) && menuSlug(m) === slug)) {
+        slug = base + "-" + n;
+        n += 1;
+      }
+      return slug;
+    },
+
     create(data) {
       const item = {
         id: uid(), emoji: data.emoji || "🍜", name: data.name || "",
         desc: data.desc || "", price: data.price || "", tag: data.tag || "",
+        group: data.group || "",
         available: data.available !== undefined ? data.available : true,
+        slug: "",
+        seoTitle: String(data.seoTitle || "").trim(),
+        seoDesc: String(data.seoDesc || "").trim(),
       };
+      const groupKey = menuGroupKey(item);
+      /* Thêm biến thể vào nhóm đã có -> dùng chung URL và thẻ SEO của
+         sản phẩm đó, không sinh slug mới. */
+      const sibling = String(item.group || "").trim()
+        ? _mem.menu.find((m) => menuGroupKey(m) === groupKey)
+        : null;
+      if (sibling) {
+        item.slug = sibling.slug || "";
+        item.seoTitle = sibling.seoTitle || "";
+        item.seoDesc = sibling.seoDesc || "";
+        if (sibling.slugAliases) item.slugAliases = sibling.slugAliases.slice();
+      } else {
+        item.slug = this.uniqueSlug(String(data.slug || "").trim() || menuProductName(item), this.ownIds([groupKey], item.id));
+      }
       _mem.menu.push(item);
       if (_useAPI) _apiPost("menu", "create", null, item);
       else writeJSON(DB_KEYS.menu, _mem.menu);
       return item;
     },
+
     update(id, data) {
       const idx = _mem.menu.findIndex((m) => String(m.id) === String(id));
       if (idx === -1) return null;
-      _mem.menu[idx] = { ..._mem.menu[idx], ...data };
-      if (_useAPI) _apiPost("menu", "update", id, _mem.menu[idx]);
-      else writeJSON(DB_KEYS.menu, _mem.menu);
+      const before = _mem.menu[idx];
+      const next = { ...before, ...data };
+      const has = (k) => Object.prototype.hasOwnProperty.call(data, k);
+      const groupKey = menuGroupKey(next);
+
+      /* Chỉ tính lại slug khi form thực sự gửi slug/tên/nhóm, để thao tác
+         nhanh (bật/tắt "Còn hàng", sắp xếp) không làm đổi URL. */
+      if (has("slug") || has("name") || has("group")) {
+        const previous = menuSlug(before);
+        const own = this.ownIds([menuGroupKey(before), groupKey], id);
+        next.slug = has("slug")
+          ? this.uniqueSlug(String(data.slug || "").trim() || menuProductName(next), own)
+          : this.uniqueSlug(next.slug || menuProductName(next), own);
+        if (previous && previous !== next.slug) {
+          // Giữ tối đa 5 slug cũ để /mon/<slug-cũ> vẫn mở được.
+          next.slugAliases = [previous]
+            .concat((next.slugAliases || []).filter((a) => a !== previous && a !== next.slug))
+            .slice(0, 5);
+        }
+      }
+
+      _mem.menu[idx] = next;
+      if (_useAPI) _apiPost("menu", "update", id, next);
+
+      /* URL và thẻ SEO thuộc về sản phẩm, nên chép sang mọi biến thể
+         cùng nhóm — sửa ở biến thể nào cũng ra kết quả như nhau. */
+      if (String(next.group || "").trim() && (has("slug") || has("seoTitle") || has("seoDesc") || has("name") || has("group"))) {
+        _mem.menu.forEach((m, i) => {
+          if (i === idx || menuGroupKey(m) !== groupKey) return;
+          const synced = {
+            ...m,
+            slug: next.slug || "",
+            seoTitle: next.seoTitle || "",
+            seoDesc: next.seoDesc || "",
+            slugAliases: (next.slugAliases || []).slice(),
+          };
+          _mem.menu[i] = synced;
+          if (_useAPI) _apiPost("menu", "update", synced.id, synced);
+        });
+      }
+
+      if (!_useAPI) writeJSON(DB_KEYS.menu, _mem.menu);
       return _mem.menu[idx];
     },
     remove(id) {
@@ -468,7 +753,66 @@ async function _apiGetAsync(qs) {
   return null;
 }
 
+/* ── Nạp seed theo yêu cầu ─────────────────────────────────────────
+   data.js + data-posts.js + data-reservations.js (~96KB) chỉ dùng để
+   khởi tạo DB rỗng lần đầu, nhưng trước đây trang công khai nào cũng
+   phải tải và parse chúng. Giờ chỉ nạp khi thật sự cần seed (DB trống
+   hoặc chạy dev không có api.php). Trang admin vẫn nhúng sẵn bằng thẻ
+   <script> vì chúng dùng đường khởi tạo đồng bộ, không await được. */
+let _seedScriptsPromise = null;
+
+function _loadSeedScripts() {
+  if (typeof SETTINGS_SEED !== "undefined") return Promise.resolve();
+  if (_seedScriptsPromise) return _seedScriptsPromise;
+
+  const files = ["data.js", "data-posts.js", "data-reservations.js"];
+  _seedScriptsPromise = files.reduce(
+    (chain, file) => chain.then(() => new Promise((resolve) => {
+      const el = document.createElement("script");
+      el.src = "/assets/js/" + file;
+      el.onload = resolve;
+      el.onerror = resolve; // thiếu file seed thì vẫn chạy tiếp với mặc định
+      document.head.appendChild(el);
+    })),
+    Promise.resolve()
+  );
+  return _seedScriptsPromise;
+}
+
+/* ── Cache dữ liệu trong phiên ─────────────────────────────────────
+   api.php?action=init trả về toàn bộ DB (~64KB) và bị đánh dấu
+   no-store, nên trước đây mỗi lần chuyển trang / chuyển món đều phải
+   tải lại từ đầu, và vùng nội dung để trắng cho tới khi tải xong.
+   Giữ lại bản chụp trong sessionStorage (theo tab) để lần chuyển trang
+   sau render ngay lập tức, rồi làm mới ngầm cho lần sau nữa. */
+const DB_CACHE_KEY = "dsp_db_cache";
+const DB_CACHE_TTL = 60000; // 60 giây
+
+function _readDbCache() {
+  try {
+    const raw = sessionStorage.getItem(DB_CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || !entry.at || !entry.data) return null;
+    if (Date.now() - entry.at > DB_CACHE_TTL) return null;
+    if (!entry.data.settings || Object.keys(entry.data.settings).length === 0) return null;
+    return entry.data;
+  } catch (e) { return null; }
+}
+
+function _writeDbCache(data) {
+  try { sessionStorage.setItem(DB_CACHE_KEY, JSON.stringify({ at: Date.now(), data })); }
+  catch (e) { /* hết quota hoặc chế độ riêng tư — bỏ qua, chỉ mất tốc độ */ }
+}
+
+/* Mọi thao tác ghi đều xoá cache để admin sửa xong là thấy ngay,
+   không phải chờ hết TTL. */
+function _clearDbCache() {
+  try { sessionStorage.removeItem(DB_CACHE_KEY); } catch (e) {}
+}
+
 async function _seedViaAPIAsync() {
+  await _loadSeedScripts();
   const seed = {
     settings:     (typeof SETTINGS_SEED     !== "undefined" ? SETTINGS_SEED     : {}),
     menu:         (typeof MENU_SEED         !== "undefined" ? MENU_SEED         : []),
@@ -483,19 +827,42 @@ async function _seedViaAPIAsync() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(seed),
   });
-  if (res.status === 200) { _mem = seed; _useAPI = true; }
+  if (res.status === 200) { _mem = seed; _useAPI = true; _writeDbCache(seed); }
   else { _useAPI = false; _initLocalStorage(); }
 }
 
+/* Tải lại dữ liệu ngầm sau khi đã render từ cache. Không chặn gì cả:
+   DOM đang hiện giữ nguyên, bản mới phục vụ lần chuyển trang kế. */
+async function _revalidateDB() {
+  try {
+    const data = await _apiGetAsync("action=init");
+    if (data && data.settings && Object.keys(data.settings).length > 0) {
+      _mem = data;
+      _writeDbCache(data);
+    }
+  } catch (e) { /* mạng chập chờn — vẫn dùng bản cache */ }
+}
+
 async function initDBAsync() {
+  // Chuyển trang trong cùng tab: có cache thì render ngay, khỏi chờ mạng.
+  const cached = _readDbCache();
+  if (cached) {
+    _mem = cached;
+    _useAPI = true;
+    window.dbFresh = _revalidateDB();
+    return;
+  }
+
+  window.dbFresh = Promise.resolve();
   try {
     const data = await _apiGetAsync("action=init");
     if (data && data.seeded === false) { await _seedViaAPIAsync(); return; }
     if (data && data.settings && Object.keys(data.settings).length > 0) {
-      _mem = data; _useAPI = true; return;
+      _mem = data; _useAPI = true; _writeDbCache(data); return;
     }
   } catch (e) { /* api.php không tồn tại — dev mode */ }
   _useAPI = false;
+  await _loadSeedScripts();
   _initLocalStorage();
 }
 

@@ -108,21 +108,45 @@ function renderMenu() {
   const grid = document.getElementById("menu-grid");
   grid.innerHTML = "";
 
+  // Gom món theo "group": cùng nhóm = 1 sản phẩm nhiều biến thể.
+  // group rỗng = mỗi món là 1 sản phẩm riêng.
+  const groups = [];
+  const idx = {};
   items.forEach((item) => {
+    const key = (item.group || "").trim();
+    if (key) {
+      if (idx[key] === undefined) { idx[key] = groups.length; groups.push({ name: key, items: [] }); }
+      groups[idx[key]].items.push(item);
+    } else {
+      groups.push({ name: item.name, items: [item] });
+    }
+  });
+
+  groups.forEach((g) => {
+    const first = g.items[0];
+    const isMulti = g.items.length > 1;
+    const prices = g.items.map((it) => parseInt(String(it.price || "").replace(/\D/g, ""), 10)).filter((n) => !isNaN(n));
+    const minPrice = prices.length ? Math.min(...prices) : null;
+    const priceLabel = isMulti && minPrice != null
+      ? "từ " + minPrice.toLocaleString("vi-VN") + "đ"
+      : (first.price || "");
+    const displayName = isMulti ? g.name : first.name;
+    const tagItem = g.items.find((it) => it.tag);
+
     const a = document.createElement("a");
-    a.href = "mon?id=" + encodeURIComponent(item.id);
+    a.href = menuUrl(first);
     a.className = "group flex min-h-[310px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#e07b39]/40 no-underline";
     a.innerHTML = `
-      ${menuVisualHtml(item, "card")}
+      ${menuVisualHtml(first, "card")}
       <div class="flex flex-1 flex-col gap-2 p-5">
         <div class="flex items-start justify-between gap-2">
-          <h3 class="text-base font-bold leading-snug" style="color:#1a5276;">${escapeHtml(item.name)}</h3>
-          ${tagHtml(item.tag)}
+          <h3 class="text-base font-bold leading-snug" style="color:#1a5276;">${escapeHtml(displayName)}</h3>
+          ${tagItem ? tagHtml(tagItem.tag) : ""}
         </div>
-        <p class="line-clamp-2 flex-1 text-sm leading-6 text-gray-500">${escapeHtml(item.desc)}</p>
+        <p class="line-clamp-2 flex-1 text-sm leading-6 text-gray-500">${escapeHtml(first.desc)}</p>
         <div class="flex items-center justify-between gap-3 pt-1">
-          <span class="text-lg font-bold" style="color:#e07b39;">${escapeHtml(item.price)}</span>
-          <span class="text-xs font-semibold text-gray-400 transition-colors group-hover:text-[#e07b39]">Xem chi tiết →</span>
+          <span class="text-lg font-bold" style="color:#e07b39;">${escapeHtml(priceLabel)}</span>
+          <span class="text-xs font-semibold text-gray-400 transition-colors group-hover:text-[#e07b39]">${isMulti ? g.items.length + " loại →" : "Xem chi tiết →"}</span>
         </div>
       </div>
     `;
@@ -349,7 +373,7 @@ function renderPostsGrid() {
 
   visible.forEach((a) => {
     const link = document.createElement("a");
-    link.href = `bai-viet?id=${encodeURIComponent(a.id)}`;
+    link.href = postUrl(a);
     link.className = "bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group block";
     link.innerHTML = `
       <article>

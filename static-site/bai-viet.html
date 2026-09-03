@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="assets/css/style.css" />
+<link rel="stylesheet" href="/assets/css/style.css" />
 <script type="application/ld+json" id="post-schema"></script>
 </head>
 <body class="bg-white text-gray-800 antialiased">
@@ -44,13 +44,13 @@
 
     <div class="flex items-center gap-4">
       <nav class="desktop-nav hidden lg:flex items-center gap-6">
-        <a href="index.html#gioi-thieu" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_about">Giới thiệu</a>
-        <a href="index.html#menu" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_menu">Menu</a>
-        <a href="index.html#danh-gia" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_reviews">Đánh giá</a>
-        <a href="blog" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_posts">Bài viết</a>
-        <a href="index.html#ban-do" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_map">Bản đồ</a>
-        <a href="index.html#lien-he" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_contact">Liên hệ</a>
-        <a href="index.html#lien-he" class="ml-2 px-4 py-2 rounded-full text-sm font-semibold text-white" style="background-color: var(--color-primary);" data-i18n="nav_book">Đặt bàn</a>
+        <a href="/#gioi-thieu" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_about">Giới thiệu</a>
+        <a href="/#menu" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_menu">Menu</a>
+        <a href="/#danh-gia" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_reviews">Đánh giá</a>
+        <a href="/blog" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_posts">Bài viết</a>
+        <a href="/#ban-do" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_map">Bản đồ</a>
+        <a href="/#lien-he" class="text-sm font-medium text-gray-700 hover:text-[#e07b39] transition-colors" data-i18n="nav_contact">Liên hệ</a>
+        <a href="/#lien-he" class="ml-2 px-4 py-2 rounded-full text-sm font-semibold text-white" style="background-color: var(--color-primary);" data-i18n="nav_book">Đặt bàn</a>
       </nav>
 
       <button class="lg:hidden p-2 text-gray-700" id="mobile-menu-toggle" aria-label="Menu">
@@ -67,13 +67,13 @@
   <div class="mobile-menu-backdrop"></div>
   <div class="mobile-menu-panel">
     <button type="button" class="mobile-menu-close" id="mobile-menu-close" aria-label="Đóng menu">✕</button>
-    <a href="index.html#gioi-thieu" data-i18n="nav_about">Giới thiệu</a>
-    <a href="index.html#menu" data-i18n="nav_menu">Menu</a>
-    <a href="index.html#danh-gia" data-i18n="nav_reviews">Đánh giá</a>
-    <a href="blog" data-i18n="nav_posts">Bài viết</a>
-    <a href="index.html#ban-do" data-i18n="nav_map">Bản đồ</a>
-    <a href="index.html#lien-he" data-i18n="nav_contact">Liên hệ</a>
-    <a href="index.html#lien-he" class="mobile-menu-cta" data-i18n="nav_book">Đặt bàn</a>
+    <a href="/#gioi-thieu" data-i18n="nav_about">Giới thiệu</a>
+    <a href="/#menu" data-i18n="nav_menu">Menu</a>
+    <a href="/#danh-gia" data-i18n="nav_reviews">Đánh giá</a>
+    <a href="/blog" data-i18n="nav_posts">Bài viết</a>
+    <a href="/#ban-do" data-i18n="nav_map">Bản đồ</a>
+    <a href="/#lien-he" data-i18n="nav_contact">Liên hệ</a>
+    <a href="/#lien-he" class="mobile-menu-cta" data-i18n="nav_book">Đặt bàn</a>
   </div>
 </nav>
 
@@ -83,7 +83,7 @@
   <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1.5 flex-wrap">
     <a href="/" class="hover:text-[#e07b39] transition-colors" data-i18n="breadcrumb_home">Trang chủ</a>
     <span>/</span>
-    <a href="blog" class="hover:text-[#e07b39] transition-colors" data-i18n="breadcrumb_posts">Bài viết</a>
+    <a href="/blog" class="hover:text-[#e07b39] transition-colors" data-i18n="breadcrumb_posts">Bài viết</a>
     <span>/</span>
     <span class="text-gray-500 line-clamp-1" id="breadcrumb-title"></span>
   </nav>
@@ -108,7 +108,7 @@
     <div class="text-6xl mb-4">😕</div>
     <h1 class="text-2xl font-bold mb-2" style="color:#1a5276;" data-i18n="post_not_found_title">Không tìm thấy bài viết</h1>
     <p class="text-gray-500 mb-6" data-i18n="post_not_found_desc">Bài viết bạn tìm không tồn tại hoặc đã bị gỡ.</p>
-    <a href="blog" class="inline-block px-6 py-3 rounded-full font-semibold text-white" style="background-color:#e07b39;" data-i18n="post_back">← Quay lại danh sách bài viết</a>
+    <a href="/blog" class="inline-block px-6 py-3 rounded-full font-semibold text-white" style="background-color:#e07b39;" data-i18n="post_back">← Quay lại danh sách bài viết</a>
   </div>
 
   <!-- Grid layout -->
@@ -121,7 +121,7 @@
       <p class="text-base italic text-gray-600 border-l-4 pl-4 mb-6 leading-relaxed hidden" id="post-excerpt" style="border-color:#e07b39;"></p>
 
       <figure class="mb-6 rounded-xl overflow-hidden hidden" id="post-cover-figure">
-        <img id="post-cover-img" src="" alt="" class="w-full object-cover max-h-[480px]" />
+        <img id="post-cover-img" alt="" class="w-full object-cover max-h-[480px]" />
         <figcaption class="text-center text-xs text-gray-400 mt-2 italic" id="post-cover-caption"></figcaption>
       </figure>
 
@@ -159,7 +159,7 @@
         <div class="text-3xl mb-2">🍜</div>
         <h2 class="text-lg font-bold mb-1" data-i18n="post_cta_title">Đặt bàn ngay hôm nay</h2>
         <p class="text-sm opacity-85 mb-4" data-i18n="post_cta_desc">Giữ chỗ trước để thưởng thức đặc sản Phú Quốc tươi ngon.</p>
-        <a href="index.html#lien-he" class="inline-block px-7 py-2.5 rounded-full bg-white text-sm font-semibold transition-colors hover:bg-orange-50" style="color:#e07b39;" data-i18n="post_cta_btn">Đặt bàn ngay →</a>
+        <a href="/#lien-he" class="inline-block px-7 py-2.5 rounded-full bg-white text-sm font-semibold transition-colors hover:bg-orange-50" style="color:#e07b39;" data-i18n="post_cta_btn">Đặt bàn ngay →</a>
       </div>
     </article>
 
@@ -177,7 +177,7 @@
         <div class="text-2xl mb-2">🍜</div>
         <h2 class="text-sm font-bold mb-1" data-i18n="post_cta_title">Đặt bàn ngay hôm nay</h2>
         <p class="text-xs opacity-85 mb-4" data-i18n="post_cta_desc">Giữ chỗ trước để thưởng thức đặc sản Phú Quốc tươi ngon.</p>
-        <a href="index.html#lien-he" class="block px-4 py-2 rounded-full bg-white text-sm font-semibold transition-colors hover:bg-orange-50" style="color:#e07b39;" data-i18n="post_cta_btn">Đặt bàn ngay →</a>
+        <a href="/#lien-he" class="block px-4 py-2 rounded-full bg-white text-sm font-semibold transition-colors hover:bg-orange-50" style="color:#e07b39;" data-i18n="post_cta_btn">Đặt bàn ngay →</a>
       </div>
     </aside>
   </div>
@@ -223,12 +223,12 @@
       <div>
         <h4 class="mb-4 text-sm font-bold uppercase tracking-wider text-white/80" data-i18n="footer_nav_h">Điều hướng</h4>
         <ul class="space-y-2 text-sm text-white/65">
-          <li><a href="index.html#gioi-thieu" class="transition-colors hover:text-white" data-i18n="nav_about">Giới thiệu</a></li>
-          <li><a href="index.html#menu" class="transition-colors hover:text-white" data-i18n="nav_menu">Menu</a></li>
-          <li><a href="index.html#danh-gia" class="transition-colors hover:text-white" data-i18n="nav_reviews">Đánh giá</a></li>
-          <li><a href="blog" class="transition-colors hover:text-white" data-i18n="nav_posts">Bài viết</a></li>
-          <li><a href="index.html#ban-do" class="transition-colors hover:text-white" data-i18n="nav_map">Bản đồ</a></li>
-          <li><a href="index.html#lien-he" class="transition-colors hover:text-white" data-i18n="nav_contact">Liên hệ</a></li>
+          <li><a href="/#gioi-thieu" class="transition-colors hover:text-white" data-i18n="nav_about">Giới thiệu</a></li>
+          <li><a href="/#menu" class="transition-colors hover:text-white" data-i18n="nav_menu">Menu</a></li>
+          <li><a href="/#danh-gia" class="transition-colors hover:text-white" data-i18n="nav_reviews">Đánh giá</a></li>
+          <li><a href="/blog" class="transition-colors hover:text-white" data-i18n="nav_posts">Bài viết</a></li>
+          <li><a href="/#ban-do" class="transition-colors hover:text-white" data-i18n="nav_map">Bản đồ</a></li>
+          <li><a href="/#lien-he" class="transition-colors hover:text-white" data-i18n="nav_contact">Liên hệ</a></li>
         </ul>
       </div>
 
@@ -285,17 +285,14 @@
 <!-- MOBILE CTA -->
 <div id="mobile-cta" style="display:none;">
   <a href="tel:0377817852" id="mobile-cta-call" class="cta-call" data-i18n="cta_call">📞 Gọi ngay</a>
-  <a href="index.html#lien-he" class="cta-book" data-i18n="cta_book">🍜 Đặt bàn ngay</a>
+  <a href="/#lien-he" class="cta-book" data-i18n="cta_book">🍜 Đặt bàn ngay</a>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 <script>window.__ASYNC_INIT__ = true;</script>
-<script src="assets/js/data.js"></script>
-<script src="assets/js/data-posts.js"></script>
-<script src="assets/js/data-reservations.js"></script>
-<script src="assets/js/storage.js"></script>
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/common.js"></script>
-<script src="assets/js/post.js"></script>
+<script src="/assets/js/storage.js"></script>
+<script src="/assets/js/i18n.js"></script>
+<script src="/assets/js/common.js"></script>
+<script src="/assets/js/post.js"></script>
 </body>
 </html>

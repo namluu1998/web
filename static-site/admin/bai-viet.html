@@ -127,6 +127,7 @@
             <td>
               <div class="font-medium text-gray-700">${escapeHtml(post.title)}</div>
               ${post.tag ? `<span class="badge badge-blue">${escapeHtml(post.tag)}</span>` : ""}
+              <div><a href="${escapeHtml(postUrl(post))}" target="_blank" rel="noopener" class="text-xs" style="color:#e07b39;">${escapeHtml(postUrl(post))} ↗</a></div>
             </td>
             <td class="hidden md:table-cell">👁 ${escapeHtml(post.views)}</td>
             <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(post.date)}</td>

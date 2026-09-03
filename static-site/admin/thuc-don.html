@@ -21,15 +21,24 @@
 
   <div class="admin-main">
     <header class="admin-topbar">
-      <h1 class="text-lg font-bold" style="color:#1a5276;">🍜 Thực đơn</h1>
-      <button id="btn-add" class="btn-admin">+ Thêm món</button>
+      <div style="min-width:0;">
+        <p class="text-xs text-gray-400" id="crumb" style="min-height:1em;"></p>
+        <h1 class="text-lg font-bold" style="color:#1a5276;" id="page-heading">🍜 Thực đơn</h1>
+      </div>
+      <div class="flex gap-2">
+        <button id="btn-add-variant" class="btn-admin-secondary hidden">+ Thêm biến thể</button>
+        <button id="btn-add-product" class="btn-admin">+ Thêm sản phẩm</button>
+        <button id="btn-save" class="btn-admin hidden">💾 Lưu</button>
+      </div>
     </header>
 
     <div class="admin-content">
-      <div class="grid gap-4" id="content-grid">
-        <div class="admin-card" id="list-panel">
+
+      <!-- ══ TẦNG 1: DANH SÁCH SẢN PHẨM ══════════════════════════ -->
+      <div id="view-list">
+        <div class="admin-card">
           <div class="mb-4">
-            <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên, mô tả, giá..." style="max-width:24rem;" />
+            <input type="search" id="search-input" class="form-input" placeholder="Tìm theo tên sản phẩm, biến thể, giá..." style="max-width:24rem;" />
           </div>
 
           <div style="overflow-x:auto;">
@@ -37,73 +46,153 @@
               <thead>
                 <tr>
                   <th>Ảnh</th>
-                  <th>Tên món</th>
+                  <th>Sản phẩm</th>
                   <th class="hidden md:table-cell">Giá</th>
+                  <th>Biến thể</th>
                   <th>Tình trạng</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
-              <tbody id="menu-tbody"></tbody>
+              <tbody id="product-tbody"></tbody>
             </table>
           </div>
 
           <div id="empty-state" class="hidden text-center text-gray-400 py-10">
             <div class="text-4xl mb-2">🍜</div>
-            <p>Chưa có món nào trong thực đơn.</p>
+            <p>Chưa có sản phẩm nào trong thực đơn.</p>
           </div>
 
           <div class="pagination" id="pagination"></div>
         </div>
+      </div>
 
-        <div class="admin-card hidden" id="form-panel">
-          <h2 class="font-bold mb-3" style="color:#1a5276;" id="form-heading">Thêm món mới</h2>
-          <form id="menu-form" class="space-y-4">
-            <div>
-              <label class="form-label">Biểu tượng</label>
-              <div id="emoji-grid" class="flex flex-wrap gap-2 mb-2"></div>
-              <div class="flex gap-2 mb-1">
-                <input type="text" id="f-emoji" class="form-input" placeholder="Emoji hoặc URL ảnh" />
-                <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
-                  📁 Tải lên<input type="file" id="f-icon-file" accept="image/*" class="hidden" />
-                </label>
-              </div>
-              <div id="icon-upload-status" style="font-size:0.78rem;min-height:1.1em;"></div>
-              <div id="icon-preview" class="mt-2"></div>
-            </div>
+      <!-- ══ TẦNG 2: CHI TIẾT SẢN PHẨM ═══════════════════════════ -->
+      <div id="view-product" class="hidden space-y-4">
+        <a href="thuc-don.html" class="text-sm inline-block" style="color:#e07b39;" id="back-to-list">← Quay về danh sách sản phẩm</a>
 
-            <div>
-              <label class="form-label">Tên món *</label>
-              <input type="text" id="f-name" class="form-input" required />
-            </div>
+        <div class="admin-card space-y-4">
+          <h2 class="font-bold" style="color:#1a5276;">Thông tin sản phẩm</h2>
 
-            <div>
-              <label class="form-label">Mô tả</label>
-              <textarea id="f-desc" class="form-textarea" rows="2"></textarea>
-            </div>
+          <div>
+            <label class="form-label">Tên sản phẩm *</label>
+            <input type="text" id="p-name" class="form-input" required />
+            <p class="text-xs text-gray-400 mt-1" id="p-name-hint"></p>
+          </div>
 
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="form-label">Giá</label>
-                <input type="text" id="f-price" class="form-input" placeholder="VD: 150.000đ" />
-              </div>
-              <div>
-                <label class="form-label">Nhãn</label>
-                <select id="f-tag" class="form-select"></select>
-              </div>
+          <div>
+            <label class="form-label">Ảnh đại diện</label>
+            <div id="p-emoji-grid" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="p-emoji" class="form-input" placeholder="Emoji hoặc URL ảnh" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="p-icon-file" accept="image/*" class="hidden" />
+              </label>
             </div>
+            <div id="p-icon-status" style="font-size:0.78rem;min-height:1.1em;"></div>
+            <div id="p-icon-preview" class="mt-2"></div>
+            <p class="text-xs text-gray-400 mt-1">Dùng làm ảnh thẻ sản phẩm ngoài trang chủ. Mỗi biến thể vẫn có ảnh riêng.</p>
+          </div>
+        </div>
 
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="f-available" class="w-4 h-4" checked />
-              <label for="f-available" class="text-sm text-gray-700">Còn hàng</label>
-            </div>
+        <!-- Biến thể -->
+        <div class="admin-card" id="card-variants">
+          <div class="flex items-center justify-between mb-1">
+            <h2 class="font-bold" style="color:#1a5276;">Biến thể</h2>
+            <span class="text-sm text-gray-400" id="variant-count"></span>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">Các biến thể nằm trong sản phẩm này và dùng chung một đường dẫn công khai. Bấm vào một biến thể để sửa giá, mô tả, ảnh.</p>
+          <div id="variant-list" class="space-y-2"></div>
+          <button type="button" id="btn-add-variant-inline" class="btn-admin-secondary mt-3">+ Thêm biến thể</button>
+        </div>
 
-            <div class="flex gap-2">
-              <button type="submit" class="btn-admin">💾 Lưu</button>
-              <button type="button" id="btn-cancel" class="btn-admin-secondary">Hủy</button>
-            </div>
-          </form>
+        <!-- SEO -->
+        <div class="admin-card space-y-4">
+          <div>
+            <h2 class="font-bold" style="color:#1a5276;">🔍 Tối ưu công cụ tìm kiếm (SEO)</h2>
+            <p class="text-xs text-gray-400 mt-1">
+              Quyết định tiêu đề, mô tả và đường dẫn khi sản phẩm hiện trên Google hoặc khi share Facebook/Zalo.
+              Để trống ô nào thì hệ thống tự lấy từ <strong>tên sản phẩm</strong> và mô tả của biến thể đầu tiên.
+            </p>
+            <p class="text-xs mt-1 hidden" id="p-seo-note" style="color:#b7770d;"></p>
+          </div>
+
+          <div>
+            <label class="form-label">Tiêu đề</label>
+            <input type="text" id="p-seoTitle" class="form-input" maxlength="200" />
+            <p class="seo-counter mt-1"><span id="p-seoTitle-count">0</span>/70</p>
+          </div>
+
+          <div>
+            <label class="form-label">Mô tả</label>
+            <textarea id="p-seoDesc" class="form-textarea" rows="3" maxlength="500"></textarea>
+            <p class="seo-counter mt-1"><span id="p-seoDesc-count">0</span>/160</p>
+          </div>
+
+          <div>
+            <label class="form-label">Đường dẫn</label>
+            <input type="text" id="p-slug" class="form-input" placeholder="tu-dong-tao-tu-ten-san-pham" />
+            <p class="seo-counter mt-1">https://bunquayphuquoc.com/mon/<strong id="p-slug-preview" style="color:#374151;"></strong></p>
+          </div>
+        </div>
+
+        <div class="admin-card" id="card-delete-product">
+          <button type="button" id="btn-delete-product" class="btn-admin" style="background:#dc2626;border-color:#dc2626;">🗑️ Xoá sản phẩm</button>
+          <p class="text-xs text-gray-400 mt-2" id="delete-product-hint"></p>
         </div>
       </div>
+
+      <!-- ══ TẦNG 3: SỬA BIẾN THỂ ════════════════════════════════ -->
+      <div id="view-variant" class="hidden space-y-4">
+        <a href="#" class="text-sm inline-block" style="color:#e07b39;" id="back-to-product">← Quay về chi tiết sản phẩm</a>
+
+        <div class="admin-card space-y-4">
+          <div>
+            <label class="form-label">Tên biến thể *</label>
+            <input type="text" id="v-name" class="form-input" required />
+            <p class="text-xs text-gray-400 mt-1" id="v-name-hint"></p>
+          </div>
+
+          <div>
+            <label class="form-label">Ảnh / biểu tượng</label>
+            <div id="v-emoji-grid" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="flex gap-2 mb-1">
+              <input type="text" id="v-emoji" class="form-input" placeholder="Emoji hoặc URL ảnh" />
+              <label style="cursor:pointer;white-space:nowrap;padding:0.45rem 0.8rem;background:#f3f4f6;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;">
+                📁 Tải lên<input type="file" id="v-icon-file" accept="image/*" class="hidden" />
+              </label>
+            </div>
+            <div id="v-icon-status" style="font-size:0.78rem;min-height:1.1em;"></div>
+            <div id="v-icon-preview" class="mt-2"></div>
+          </div>
+
+          <div>
+            <label class="form-label">Mô tả</label>
+            <textarea id="v-desc" class="form-textarea" rows="3"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Giá</label>
+              <input type="text" id="v-price" class="form-input" placeholder="VD: 150.000đ" />
+            </div>
+            <div>
+              <label class="form-label">Nhãn</label>
+              <select id="v-tag" class="form-select"></select>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="v-available" class="w-4 h-4" checked />
+            <label for="v-available" class="text-sm text-gray-700">Còn hàng</label>
+          </div>
+        </div>
+
+        <div class="admin-card" id="card-delete-variant">
+          <button type="button" id="btn-delete-variant" class="btn-admin" style="background:#dc2626;border-color:#dc2626;">🗑️ Xoá biến thể</button>
+          <p class="text-xs text-gray-400 mt-2" id="delete-variant-hint"></p>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -116,111 +205,98 @@
   <script>
     const TAGS = ["Bán chạy", "Mới", "Yêu thích", "Đặc biệt", ""];
     const EMOJIS = ["🍜", "🦀", "🦑", "🍤", "🥤", "🧃", "🐟", "🦐", "🥗", "🍵", "🍱", "🫙"];
-    const EMPTY = { emoji: "🍜", name: "", desc: "", price: "", tag: "", available: true };
-
+    const SEO_LIMITS = { seoTitle: 70, seoDesc: 160 };
     const PAGE_SIZE = 10;
+
+    let currentUser = null;
+    let editable = false;
     let currentPage = 1;
     let searchQuery = "";
-    let currentUser = null;
-    let editingId = null;
+    // Sản phẩm đang mở = id của một biến thể bất kỳ thuộc sản phẩm đó.
+    let productAnchorId = null;
+    let editingVariantId = null;
+    // Admin đã tự gõ Đường dẫn chưa? Nếu chưa thì slug bám theo tên sản phẩm.
+    let slugTouched = false;
+
+    /* ── Điều hướng giữa 3 tầng ───────────────────────────────────
+       Mỗi tầng có URL riêng (?sp=, &bt=) nên nút Back/Forward của
+       trình duyệt và việc gửi link cho nhau đều hoạt động. */
+    function readRoute() {
+      const q = new URLSearchParams(location.search);
+      return { sp: q.get("sp") || "", bt: q.get("bt") || "" };
+    }
+
+    function goTo(sp, bt, replace) {
+      let url = "thuc-don.html";
+      if (sp) url += "?sp=" + encodeURIComponent(sp) + (bt ? "&bt=" + encodeURIComponent(bt) : "");
+      try {
+        if (replace) history.replaceState(null, "", url);
+        else history.pushState(null, "", url);
+      } catch (e) { /* file:// -> bỏ qua, vẫn render đúng tầng */ }
+      renderRoute();
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
       currentUser = initAdminLayout("thuc-don.html");
       if (!currentUser) return;
+      editable = canEdit(currentUser.role);
 
-      const editable = canEdit(currentUser.role);
-      if (!editable) {
-        document.getElementById("btn-add").classList.add("hidden");
-      }
+      buildEmojiGrid("p");
+      buildEmojiGrid("v");
+      document.getElementById("v-tag").innerHTML =
+        TAGS.map((t) => `<option value="${escapeHtml(t)}">${t ? escapeHtml(t) : "— Không —"}</option>`).join("");
 
-      // Tag select
-      const tagSelect = document.getElementById("f-tag");
-      tagSelect.innerHTML = TAGS.map((t) => `<option value="${escapeHtml(t)}">${t ? escapeHtml(t) : "— Không —"}</option>`).join("");
-
-      // Emoji grid
-      const emojiGrid = document.getElementById("emoji-grid");
-      emojiGrid.innerHTML = EMOJIS.map((e) => `<button type="button" class="icon-btn emoji-option" data-emoji="${e}" style="font-size:1.25rem;">${e}</button>`).join("");
-      emojiGrid.querySelectorAll(".emoji-option").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          document.getElementById("f-emoji").value = btn.getAttribute("data-emoji");
-          highlightEmoji();
-          updateIconPreview();
-        });
-      });
-
-      document.getElementById("f-emoji").addEventListener("input", () => {
-        highlightEmoji();
-        updateIconPreview();
-      });
-
-      document.getElementById("f-icon-file").addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const status = document.getElementById("icon-upload-status");
-        status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280";
-        try {
-          const fd = new FormData(); fd.append("file", file);
-          const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
-          const data = await res.json();
-          if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
-          document.getElementById("f-emoji").value = data.url;
-          highlightEmoji();
-          updateIconPreview();
-          status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a";
-        } catch (err) {
-          status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
-        }
-        e.target.value = "";
-      });
+      wireProductForm();
+      wireVariantForm();
 
       document.getElementById("search-input").addEventListener("input", (e) => {
         searchQuery = e.target.value;
         currentPage = 1;
-        render();
+        renderList();
       });
+      document.getElementById("btn-add-product").addEventListener("click", addProduct);
+      document.getElementById("btn-add-variant").addEventListener("click", addVariant);
+      document.getElementById("btn-add-variant-inline").addEventListener("click", addVariant);
+      document.getElementById("btn-save").addEventListener("click", saveCurrentView);
+      document.getElementById("btn-delete-product").addEventListener("click", deleteProduct);
+      document.getElementById("btn-delete-variant").addEventListener("click", deleteVariant);
+      document.getElementById("back-to-list").addEventListener("click", (e) => { e.preventDefault(); goTo("", ""); });
+      document.getElementById("back-to-product").addEventListener("click", (e) => { e.preventDefault(); goTo(productAnchorId, ""); });
 
-      document.getElementById("btn-add").addEventListener("click", () => openForm(null));
-      document.getElementById("btn-cancel").addEventListener("click", closeForm);
-
-      document.getElementById("menu-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const data = {
-          emoji: document.getElementById("f-emoji").value.trim() || EMPTY.emoji,
-          name: document.getElementById("f-name").value.trim(),
-          desc: document.getElementById("f-desc").value.trim(),
-          price: document.getElementById("f-price").value.trim(),
-          tag: document.getElementById("f-tag").value,
-          available: document.getElementById("f-available").checked,
-        };
-        if (!data.name) {
-          alert("Vui lòng nhập tên món.");
-          return;
-        }
-        if (editingId) {
-          db.menu.update(editingId, data);
-          showToast("Đã cập nhật món ăn", "success");
-        } else {
-          db.menu.create(data);
-          showToast("Đã thêm món ăn", "success");
-        }
-        closeForm();
-        render();
-      });
-
-      render();
+      window.addEventListener("popstate", renderRoute);
+      renderRoute();
     });
 
-    function highlightEmoji() {
-      const current = document.getElementById("f-emoji").value;
-      document.querySelectorAll("#emoji-grid .emoji-option").forEach((btn) => {
-        btn.style.background = btn.getAttribute("data-emoji") === current ? "#fef3e8" : "";
-        btn.style.borderColor = btn.getAttribute("data-emoji") === current ? "#e07b39" : "";
+    /* ── Bộ chọn emoji dùng chung cho 2 form ──────────────────── */
+    function buildEmojiGrid(prefix) {
+      const grid = document.getElementById(prefix + "-emoji-grid");
+      grid.innerHTML = EMOJIS.map((e) => `<button type="button" class="icon-btn emoji-option" data-emoji="${e}" style="font-size:1.25rem;">${e}</button>`).join("");
+      grid.querySelectorAll(".emoji-option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById(prefix + "-emoji").value = btn.getAttribute("data-emoji");
+          highlightEmoji(prefix);
+          updateIconPreview(prefix);
+        });
+      });
+      document.getElementById(prefix + "-emoji").addEventListener("input", () => {
+        highlightEmoji(prefix);
+        updateIconPreview(prefix);
+      });
+      document.getElementById(prefix + "-icon-file").addEventListener("change", (e) => uploadIcon(e, prefix));
+    }
+
+    function highlightEmoji(prefix) {
+      const current = document.getElementById(prefix + "-emoji").value;
+      document.querySelectorAll("#" + prefix + "-emoji-grid .emoji-option").forEach((btn) => {
+        const on = btn.getAttribute("data-emoji") === current;
+        btn.style.background = on ? "#fef3e8" : "";
+        btn.style.borderColor = on ? "#e07b39" : "";
       });
     }
 
-    function updateIconPreview() {
-      const val = document.getElementById("f-emoji").value.trim();
-      const preview = document.getElementById("icon-preview");
+    function updateIconPreview(prefix) {
+      const val = document.getElementById(prefix + "-emoji").value.trim();
+      const preview = document.getElementById(prefix + "-icon-preview");
       if (isImageValue(val)) {
         preview.innerHTML = `<img src="${escapeHtml(val)}" alt="" style="width:4rem;height:4rem;border-radius:0.5rem;object-fit:cover;" />`;
       } else if (val) {
@@ -230,144 +306,470 @@
       }
     }
 
-    function openForm(item) {
-      editingId = item ? item.id : null;
-      const heading = document.getElementById("form-heading");
-      const form = document.getElementById("menu-form");
-
-      const data = item || EMPTY;
-      document.getElementById("f-emoji").value = data.emoji || EMPTY.emoji;
-      document.getElementById("f-name").value = data.name || "";
-      document.getElementById("f-desc").value = data.desc || "";
-      document.getElementById("f-price").value = data.price || "";
-      document.getElementById("f-tag").value = data.tag || "";
-      document.getElementById("f-available").checked = data.available !== false;
-
-      heading.textContent = item ? "Sửa món ăn" : "Thêm món mới";
-      highlightEmoji();
-      updateIconPreview();
-      document.getElementById("icon-upload-status").textContent = "";
-
-      document.getElementById("content-grid").classList.add("lg:grid-cols-2");
-      document.getElementById("form-panel").classList.remove("hidden");
+    async function uploadIcon(e, prefix) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById(prefix + "-icon-status");
+      status.textContent = "⏳ Đang upload..."; status.style.color = "#6b7280";
+      try {
+        const fd = new FormData(); fd.append("file", file);
+        const res = await fetch("/api.php?action=upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || "Upload thất bại");
+        document.getElementById(prefix + "-emoji").value = data.url;
+        highlightEmoji(prefix);
+        updateIconPreview(prefix);
+        status.textContent = "✅ Upload thành công!"; status.style.color = "#16a34a";
+      } catch (err) {
+        status.textContent = "❌ " + err.message; status.style.color = "#dc2626";
+      }
+      e.target.value = "";
     }
 
-    function closeForm() {
-      editingId = null;
-      document.getElementById("content-grid").classList.remove("lg:grid-cols-2");
-      document.getElementById("form-panel").classList.add("hidden");
+    /* ── Chuyển tầng ─────────────────────────────────────────── */
+    function renderRoute() {
+      const route = readRoute();
+
+      // Tạo sản phẩm mới: mở form trống thay vì hộp prompt.
+      if (route.sp === "new") {
+        productAnchorId = "new";
+        editingVariantId = null;
+        showView("product");
+        renderProduct(null);
+        return;
+      }
+
+      const anchor = route.sp ? db.menu.getById(route.sp) : null;
+      if (!anchor) {
+        productAnchorId = null;
+        editingVariantId = null;
+        showView("list");
+        renderList();
+        return;
+      }
+      productAnchorId = route.sp;
+
+      if (route.bt === "new") {
+        editingVariantId = "new";
+        showView("variant");
+        renderVariant(anchor, null);
+        return;
+      }
+      const variant = route.bt ? db.menu.getById(route.bt) : null;
+      if (variant && menuGroupKey(variant) === menuGroupKey(anchor)) {
+        editingVariantId = route.bt;
+        showView("variant");
+        renderVariant(anchor, variant);
+        return;
+      }
+      editingVariantId = null;
+      showView("product");
+      renderProduct(anchor);
     }
 
-    function render() {
-      const all = db.menu.getAll();
-      const filtered = all.filter((it) =>
-        matchesSearch(searchQuery, it.name, it.desc, it.tag, it.price)
-      );
+    function showView(name) {
+      ["list", "product", "variant"].forEach((v) => {
+        document.getElementById("view-" + v).classList.toggle("hidden", v !== name);
+      });
+      document.getElementById("btn-add-product").classList.toggle("hidden", name !== "list" || !editable);
+      // Sản phẩm chưa lưu thì chưa thể thêm biến thể vào đâu cả.
+      document.getElementById("btn-add-variant").classList.toggle("hidden", name !== "product" || !editable || productAnchorId === "new");
+      document.getElementById("btn-save").classList.toggle("hidden", name === "list" || !editable);
+    }
 
-      const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    /* ── TẦNG 1: danh sách sản phẩm ──────────────────────────── */
+    function renderList() {
+      document.getElementById("crumb").textContent = "";
+      document.getElementById("page-heading").textContent = "🍜 Thực đơn";
+
+      const products = db.menu.getProducts(true).filter((p) => {
+        const variants = db.menu.getVariants(p, true);
+        return variants.some((v) => matchesSearch(searchQuery, menuProductName(p), v.name, v.desc, v.tag, v.price));
+      });
+
+      const total = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
       if (currentPage > total) currentPage = total;
       const start = (currentPage - 1) * PAGE_SIZE;
-      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+      const pageItems = products.slice(start, start + PAGE_SIZE);
 
-      const tbody = document.getElementById("menu-tbody");
-      const emptyState = document.getElementById("empty-state");
+      const tbody = document.getElementById("product-tbody");
+      const empty = document.getElementById("empty-state");
 
-      if (filtered.length === 0) {
+      if (!products.length) {
         tbody.innerHTML = "";
-        emptyState.classList.remove("hidden");
+        empty.classList.remove("hidden");
       } else {
-        emptyState.classList.add("hidden");
-        const editable = canEdit(currentUser.role);
+        empty.classList.add("hidden");
+        tbody.innerHTML = pageItems.map((p, i) => {
+          const globalIdx = start + i;
+          const variants = db.menu.getVariants(p, true);
+          const conHang = variants.filter((v) => v.available).length;
+          const prices = variants.map((v) => parseInt(String(v.price || "").replace(/\D/g, ""), 10)).filter((n) => !isNaN(n));
+          const priceLabel = !prices.length ? "—"
+            : variants.length > 1 ? "từ " + Math.min(...prices).toLocaleString("vi-VN") + "đ"
+            : (variants[0].price || "—");
 
-        tbody.innerHTML = pageItems.map((item, i) => {
-          const globalIdx = start + i;               // vị trí trong danh sách đầy đủ
-          const isFirst = globalIdx === 0;
-          const isLast = globalIdx === filtered.length - 1;
-          const thumb = isImageValue(item.emoji)
-            ? `<img src="${escapeHtml(item.emoji)}" alt="" style="width:2.5rem;height:2.5rem;border-radius:0.4rem;object-fit:cover;" />`
-            : `<div style="width:2.5rem;height:2.5rem;border-radius:0.4rem;background:#fef3e8;display:flex;align-items:center;justify-content:center;font-size:1.25rem;">${item.emoji || "🍜"}</div>`;
+          const thumb = isImageValue(p.emoji)
+            ? `<img src="${escapeHtml(p.emoji)}" alt="" style="width:2.5rem;height:2.5rem;border-radius:0.4rem;object-fit:cover;" />`
+            : `<div style="width:2.5rem;height:2.5rem;border-radius:0.4rem;background:#fef3e8;display:flex;align-items:center;justify-content:center;font-size:1.25rem;">${p.emoji || "🍜"}</div>`;
 
-          const availBadge = item.available
-            ? `<span class="badge badge-green">Còn</span>`
-            : `<span class="badge badge-gray">Hết</span>`;
+          const trangThai = conHang === 0
+            ? `<span class="badge badge-gray">Hết</span>`
+            : conHang === variants.length
+              ? `<span class="badge badge-green">Còn</span>`
+              : `<span class="badge badge-blue">${conHang}/${variants.length} còn</span>`;
 
-          // Nút sắp xếp chỉ hiện khi có quyền sửa VÀ không đang tìm kiếm
-          // (tìm kiếm sẽ ẩn bớt món nên đổi thứ tự dễ gây nhầm).
-          const reorderBtns = (editable && !searchQuery) ? `
-            <button class="icon-btn" data-action="up" data-id="${escapeHtml(item.id)}" title="Lên trên"${isFirst ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▲</button>
-            <button class="icon-btn" data-action="down" data-id="${escapeHtml(item.id)}" title="Xuống dưới"${isLast ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▼</button>
-          ` : "";
+          const reorder = (editable && !searchQuery) ? `
+            <button class="icon-btn" data-act="up" data-id="${escapeHtml(p.id)}" title="Lên trên"${globalIdx === 0 ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▲</button>
+            <button class="icon-btn" data-act="down" data-id="${escapeHtml(p.id)}" title="Xuống dưới"${globalIdx === products.length - 1 ? " disabled style=\"opacity:.3;cursor:default;\"" : ""}>▼</button>` : "";
 
-          const actions = editable ? `
-            ${reorderBtns}
-            <button class="icon-btn" data-action="toggle" data-id="${escapeHtml(item.id)}" title="${item.available ? "Đánh dấu hết" : "Đánh dấu còn"}">${item.available ? "🚫" : "✅"}</button>
-            <button class="icon-btn" data-action="edit" data-id="${escapeHtml(item.id)}" title="Sửa">✏️</button>
-            <button class="icon-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Xóa">🗑️</button>
-          ` : `<span class="text-gray-300 text-xs">—</span>`;
+          const actions = editable
+            ? `${reorder}<button class="icon-btn" data-act="open" data-id="${escapeHtml(p.id)}" title="Sửa sản phẩm">✏️</button>`
+            : `<button class="icon-btn" data-act="open" data-id="${escapeHtml(p.id)}" title="Xem">👁️</button>`;
 
           return `<tr>
             <td>${thumb}</td>
             <td>
-              <div class="font-medium text-gray-700">${escapeHtml(item.name)}</div>
-              ${item.tag ? `<span class="badge badge-blue">${escapeHtml(item.tag)}</span>` : ""}
-              <div class="text-xs text-gray-400">${escapeHtml(item.desc || "")}</div>
+              <a href="#" class="font-medium" data-act="open" data-id="${escapeHtml(p.id)}" style="color:#1a5276;">${escapeHtml(menuProductName(p))}</a>
+              <div><a href="${escapeHtml(menuUrl(p))}" target="_blank" rel="noopener" class="text-xs" style="color:#e07b39;">${escapeHtml(menuUrl(p))} ↗</a></div>
             </td>
-            <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(item.price || "")}</td>
-            <td>${availBadge}</td>
+            <td class="hidden md:table-cell whitespace-nowrap">${escapeHtml(priceLabel)}</td>
+            <td class="whitespace-nowrap">${variants.length > 1 ? variants.length + " biến thể" : `<span class="text-gray-400">—</span>`}</td>
+            <td>${trangThai}</td>
             <td><div class="flex gap-1">${actions}</div></td>
           </tr>`;
         }).join("");
 
-        const moveItem = (id, dir) => {
-          const all = db.menu.getAll();
-          const idx = all.findIndex((m) => String(m.id) === String(id));
-          if (idx === -1) return;
-          const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-          if (swapIdx < 0 || swapIdx >= all.length) return;
-          const ids = all.map((m) => m.id);
-          [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
-          db.menu.reorder(ids);
-          render();
-        };
-        tbody.querySelectorAll('[data-action="up"]').forEach((btn) => {
-          btn.addEventListener("click", () => { if (!btn.disabled) moveItem(btn.getAttribute("data-id"), "up"); });
+        tbody.querySelectorAll('[data-act="open"]').forEach((el) => {
+          el.addEventListener("click", (e) => { e.preventDefault(); goTo(el.getAttribute("data-id"), ""); });
         });
-        tbody.querySelectorAll('[data-action="down"]').forEach((btn) => {
-          btn.addEventListener("click", () => { if (!btn.disabled) moveItem(btn.getAttribute("data-id"), "down"); });
-        });
-
-        tbody.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const id = btn.getAttribute("data-id");
-            const item = db.menu.getById(id);
-            if (!item) return;
-            db.menu.update(id, { available: !item.available });
-            render();
-          });
-        });
-
-        tbody.querySelectorAll('[data-action="edit"]').forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const id = btn.getAttribute("data-id");
-            const item = db.menu.getById(id);
-            if (item) openForm(item);
-          });
-        });
-
-        tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const id = btn.getAttribute("data-id");
-            if (!confirm("Xóa món ăn này?")) return;
-            db.menu.remove(id);
-            render();
-          });
+        tbody.querySelectorAll('[data-act="up"],[data-act="down"]').forEach((btn) => {
+          btn.addEventListener("click", () => { if (!btn.disabled) moveProduct(btn.getAttribute("data-id"), btn.getAttribute("data-act")); });
         });
       }
 
       renderPagination(document.getElementById("pagination"), currentPage, total, (page) => {
         currentPage = page;
-        render();
+        renderList();
       });
+    }
+
+    /* Đổi chỗ 2 sản phẩm = đổi chỗ nguyên cụm biến thể của chúng,
+       để các biến thể không bị xé lẻ ra giữa hai sản phẩm khác nhau. */
+    function moveProduct(anchorId, dir) {
+      const products = db.menu.getProducts(true);
+      const idx = products.findIndex((p) => String(p.id) === String(anchorId));
+      const swap = dir === "up" ? idx - 1 : idx + 1;
+      if (idx === -1 || swap < 0 || swap >= products.length) return;
+
+      const order = products.map((p) => db.menu.getVariants(p, true).map((v) => v.id));
+      const tmp = order[idx]; order[idx] = order[swap]; order[swap] = tmp;
+      db.menu.reorder(order.reduce((all, ids) => all.concat(ids), []));
+      renderList();
+    }
+
+    function addProduct() {
+      goTo("new", "");
+    }
+
+    /* ── TẦNG 2: chi tiết sản phẩm ───────────────────────────── */
+    function renderProduct(anchor) {
+      const isNew = !anchor;
+      const variants = isNew ? [] : db.menu.getVariants(anchor, true);
+      const isGrouped = !isNew && Boolean(String(anchor.group || "").trim());
+      const productName = isNew ? "" : menuProductName(anchor);
+
+      document.getElementById("crumb").textContent = "Thực đơn";
+      document.getElementById("page-heading").textContent = isNew ? "Sản phẩm mới" : productName;
+
+      // Sản phẩm chưa tồn tại thì chưa có gì để liệt kê hay xoá.
+      document.getElementById("card-variants").classList.toggle("hidden", isNew);
+      document.getElementById("card-delete-product").classList.toggle("hidden", isNew || !editable);
+
+      if (isNew) {
+        document.getElementById("p-name").value = "";
+        document.getElementById("p-name-hint").textContent = "Lưu xong bạn có thể thêm biến thể (size, loại topping…) cho sản phẩm này.";
+        document.getElementById("p-emoji").value = "🍜";
+        document.getElementById("p-seoTitle").value = "";
+        document.getElementById("p-seoDesc").value = "";
+        document.getElementById("p-slug").value = "";
+        slugTouched = false;
+        highlightEmoji("p");
+        updateIconPreview("p");
+        document.getElementById("p-icon-status").textContent = "";
+        updateSeoCounter("p-seoTitle");
+        updateSeoCounter("p-seoDesc");
+        updateSlugPreview();
+        document.getElementById("p-seo-note").classList.add("hidden");
+        return;
+      }
+
+      document.getElementById("p-name").value = productName;
+      document.getElementById("p-name-hint").textContent = isGrouped
+        ? `Đổi tên ở đây sẽ đổi cho cả ${variants.length} biến thể (trường "Nhóm sản phẩm").`
+        : "Sản phẩm này chưa có biến thể nào khác. Thêm biến thể thứ hai sẽ tự gom chúng vào một nhóm.";
+
+      document.getElementById("p-emoji").value = anchor.emoji || "🍜";
+      highlightEmoji("p");
+      updateIconPreview("p");
+      document.getElementById("p-icon-status").textContent = "";
+
+      document.getElementById("p-seoTitle").value = anchor.seoTitle || "";
+      document.getElementById("p-seoDesc").value = anchor.seoDesc || "";
+      document.getElementById("p-slug").value = anchor.slug || "";
+      slugTouched = Boolean(anchor.slug);
+      updateSeoCounter("p-seoTitle");
+      updateSeoCounter("p-seoDesc");
+      updateSlugPreview();
+
+      const note = document.getElementById("p-seo-note");
+      if (variants.length > 1) {
+        note.textContent = `Áp dụng cho cả ${variants.length} biến thể — chúng dùng chung một URL và một thẻ SEO.`;
+        note.classList.remove("hidden");
+      } else {
+        note.classList.add("hidden");
+      }
+
+      document.getElementById("variant-count").textContent = variants.length + " biến thể";
+      document.getElementById("btn-add-variant-inline").classList.toggle("hidden", !editable);
+      document.getElementById("btn-delete-product").classList.toggle("hidden", !editable);
+      document.getElementById("delete-product-hint").textContent = variants.length > 1
+        ? `Xoá toàn bộ ${variants.length} biến thể của sản phẩm này.`
+        : "Xoá sản phẩm này khỏi thực đơn.";
+
+      const list = document.getElementById("variant-list");
+      list.innerHTML = variants.map((v) => {
+        const thumb = isImageValue(v.emoji)
+          ? `<img src="${escapeHtml(v.emoji)}" alt="" style="width:2.5rem;height:2.5rem;border-radius:0.4rem;object-fit:cover;flex-shrink:0;" />`
+          : `<div style="width:2.5rem;height:2.5rem;border-radius:0.4rem;background:#fef3e8;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">${v.emoji || "🍜"}</div>`;
+        return `<a href="#" data-vid="${escapeHtml(v.id)}" class="variant-row flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-orange-50" style="border-color:#e5e7eb;text-decoration:none;">
+          ${thumb}
+          <span class="flex-1" style="min-width:0;">
+            <span class="block font-semibold text-sm" style="color:#1a5276;">${escapeHtml(variantLabel(v, anchor))}</span>
+            <span class="block text-xs text-gray-400" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(v.desc || "")}</span>
+          </span>
+          ${v.available ? "" : `<span class="badge badge-gray">Hết</span>`}
+          <span class="text-sm font-bold whitespace-nowrap" style="color:#e07b39;">${escapeHtml(v.price || "—")}</span>
+          <span class="text-gray-300">›</span>
+        </a>`;
+      }).join("");
+
+      list.querySelectorAll(".variant-row").forEach((row) => {
+        row.addEventListener("click", (e) => { e.preventDefault(); goTo(productAnchorId, row.getAttribute("data-vid")); });
+      });
+    }
+
+    /* Nhãn biến thể = bỏ tiền tố tên sản phẩm, giống hệt trang công khai. */
+    function variantLabel(v, anchor) {
+      const group = String((anchor && anchor.group) || "").trim();
+      if (!group) return v.name;
+      let lbl = v.name;
+      if (lbl.indexOf(group) === 0) lbl = lbl.slice(group.length).replace(/^[\s\-–—:|,]+/, "").trim();
+      return lbl || v.name;
+    }
+
+    function wireProductForm() {
+      document.getElementById("p-name").addEventListener("input", () => { if (!slugTouched) updateSlugPreview(); });
+      const slugInput = document.getElementById("p-slug");
+      slugInput.addEventListener("input", () => { slugTouched = true; updateSlugPreview(); });
+      slugInput.addEventListener("blur", () => {
+        const cleaned = slugify(slugInput.value);
+        if (slugInput.value !== cleaned) slugInput.value = cleaned;
+        if (!cleaned) slugTouched = false;
+        updateSlugPreview();
+      });
+      document.getElementById("p-seoTitle").addEventListener("input", () => updateSeoCounter("p-seoTitle"));
+      document.getElementById("p-seoDesc").addEventListener("input", () => updateSeoCounter("p-seoDesc"));
+    }
+
+    function updateSeoCounter(fieldId) {
+      const input = document.getElementById(fieldId);
+      const counter = document.getElementById(fieldId + "-count");
+      if (!input || !counter) return;
+      const len = input.value.trim().length;
+      counter.textContent = len;
+      counter.parentElement.classList.toggle("over", len > SEO_LIMITS[fieldId.replace("p-", "")]);
+    }
+
+    function updateSlugPreview() {
+      const typed = slugify(document.getElementById("p-slug").value);
+      const derived = slugify(document.getElementById("p-name").value);
+      document.getElementById("p-slug-preview").textContent = typed || derived || "…";
+    }
+
+    function saveProduct() {
+      const name = document.getElementById("p-name").value.trim();
+      if (!name) { alert("Vui lòng nhập tên sản phẩm."); return; }
+
+      // Sản phẩm mới: tạo dòng menu đầu tiên rồi mở luôn trang chi tiết.
+      if (productAnchorId === "new") {
+        const created = db.menu.create({
+          name,
+          emoji: document.getElementById("p-emoji").value.trim() || "🍜",
+          seoTitle: document.getElementById("p-seoTitle").value.trim(),
+          seoDesc: document.getElementById("p-seoDesc").value.trim(),
+          slug: slugify(document.getElementById("p-slug").value),
+          available: true,
+        });
+        showToast("Đã tạo sản phẩm", "success");
+        goTo(created.id, "");
+        return;
+      }
+
+      const anchor = db.menu.getById(productAnchorId);
+      if (!anchor) return;
+
+      const variants = db.menu.getVariants(anchor, true);
+      const isGrouped = Boolean(String(anchor.group || "").trim());
+      const seo = {
+        seoTitle: document.getElementById("p-seoTitle").value.trim(),
+        seoDesc: document.getElementById("p-seoDesc").value.trim(),
+        slug: slugify(document.getElementById("p-slug").value),
+      };
+      const emoji = document.getElementById("p-emoji").value.trim() || "🍜";
+
+      if (isGrouped) {
+        // Đổi tên sản phẩm = đổi "group" của mọi biến thể; SEO tự lan theo.
+        variants.forEach((v, i) => {
+          const patch = { group: name, ...seo };
+          if (i === 0) patch.emoji = emoji;
+          db.menu.update(v.id, patch);
+        });
+      } else {
+        db.menu.update(anchor.id, { name, emoji, ...seo });
+      }
+      showToast("Đã lưu sản phẩm", "success");
+      renderRoute();
+    }
+
+    function deleteProduct() {
+      const anchor = db.menu.getById(productAnchorId);
+      if (!anchor) return;
+      const variants = db.menu.getVariants(anchor, true);
+      const msg = variants.length > 1
+        ? `Xoá sản phẩm "${menuProductName(anchor)}" cùng cả ${variants.length} biến thể?`
+        : `Xoá sản phẩm "${menuProductName(anchor)}"?`;
+      if (!confirm(msg)) return;
+      variants.forEach((v) => db.menu.remove(v.id));
+      showToast("Đã xoá sản phẩm", "success");
+      goTo("", "");
+    }
+
+    /* ── TẦNG 3: sửa biến thể ────────────────────────────────── */
+    function renderVariant(anchor, variant) {
+      const isNew = !variant;
+      const productName = menuProductName(anchor);
+      document.getElementById("crumb").textContent = "Thực đơn / " + productName;
+      document.getElementById("page-heading").textContent = isNew
+        ? "Biến thể mới"
+        : (variantLabel(variant, anchor) || variant.name);
+
+      document.getElementById("card-delete-variant").classList.toggle("hidden", isNew || !editable);
+
+      if (isNew) {
+        document.getElementById("v-name").value = "";
+        document.getElementById("v-name-hint").textContent =
+          `Đặt tên đầy đủ, ví dụ "${productName} – Tô Lớn". Phần trùng tên sản phẩm sẽ được lược bỏ khi hiển thị cho khách.`;
+        document.getElementById("v-desc").value = "";
+        document.getElementById("v-price").value = "";
+        document.getElementById("v-tag").value = "";
+        document.getElementById("v-available").checked = true;
+        document.getElementById("v-emoji").value = anchor.emoji || "🍜";
+        highlightEmoji("v");
+        updateIconPreview("v");
+        document.getElementById("v-icon-status").textContent = "";
+        return;
+      }
+
+      document.getElementById("v-name").value = variant.name || "";
+      document.getElementById("v-name-hint").textContent = String(anchor.group || "").trim()
+        ? `Tên đầy đủ. Phần trùng "${productName}" sẽ được lược bỏ khi hiển thị cho khách.`
+        : "";
+      document.getElementById("v-desc").value = variant.desc || "";
+      document.getElementById("v-price").value = variant.price || "";
+      document.getElementById("v-tag").value = variant.tag || "";
+      document.getElementById("v-available").checked = variant.available !== false;
+      document.getElementById("v-emoji").value = variant.emoji || "🍜";
+      highlightEmoji("v");
+      updateIconPreview("v");
+      document.getElementById("v-icon-status").textContent = "";
+
+      const variants = db.menu.getVariants(anchor, true);
+      document.getElementById("btn-delete-variant").classList.toggle("hidden", !editable);
+      document.getElementById("delete-variant-hint").textContent = variants.length > 1
+        ? `Sản phẩm còn lại ${variants.length - 1} biến thể sau khi xoá.`
+        : "Đây là biến thể duy nhất — xoá nó là xoá luôn sản phẩm.";
+    }
+
+    function wireVariantForm() { /* các ô đều đọc lúc lưu, không cần listener riêng */ }
+
+    function saveVariant() {
+      const name = document.getElementById("v-name").value.trim();
+      if (!name) { alert("Vui lòng nhập tên biến thể."); return; }
+
+      const anchor = db.menu.getById(productAnchorId);
+      if (!anchor) return;
+
+      // Biến thể mới
+      if (editingVariantId === "new") {
+        const productName = menuProductName(anchor);
+        /* Sản phẩm đơn nhận biến thể thứ hai -> gom cả hai vào một nhóm,
+           giữ nguyên URL và thẻ SEO đang có của sản phẩm. */
+        if (!String(anchor.group || "").trim()) {
+          db.menu.update(anchor.id, { group: productName });
+        }
+        db.menu.create({
+          name,
+          group: productName,
+          emoji: document.getElementById("v-emoji").value.trim() || "🍜",
+          desc: document.getElementById("v-desc").value.trim(),
+          price: document.getElementById("v-price").value.trim(),
+          tag: document.getElementById("v-tag").value,
+          available: document.getElementById("v-available").checked,
+        });
+        showToast("Đã thêm biến thể", "success");
+        goTo(productAnchorId, "");
+        return;
+      }
+
+      const variant = db.menu.getById(editingVariantId);
+      if (!variant) return;
+      db.menu.update(variant.id, {
+        name,
+        emoji: document.getElementById("v-emoji").value.trim() || "🍜",
+        desc: document.getElementById("v-desc").value.trim(),
+        price: document.getElementById("v-price").value.trim(),
+        tag: document.getElementById("v-tag").value,
+        available: document.getElementById("v-available").checked,
+      });
+      showToast("Đã lưu biến thể", "success");
+      goTo(productAnchorId, "");
+    }
+
+    function addVariant() {
+      if (!productAnchorId || productAnchorId === "new") return;
+      goTo(productAnchorId, "new");
+    }
+
+    function deleteVariant() {
+      const variant = db.menu.getById(editingVariantId);
+      const anchor = db.menu.getById(productAnchorId);
+      if (!variant || !anchor) return;
+      const variants = db.menu.getVariants(anchor, true);
+      if (!confirm(variants.length > 1 ? "Xoá biến thể này?" : "Đây là biến thể duy nhất — xoá sẽ mất luôn sản phẩm. Tiếp tục?")) return;
+      db.menu.remove(variant.id);
+      showToast("Đã xoá biến thể", "success");
+      if (variants.length > 1) {
+        const remain = variants.find((v) => String(v.id) !== String(variant.id));
+        goTo(String(remain.id) === String(productAnchorId) ? productAnchorId : remain.id, "");
+      } else {
+        goTo("", "");
+      }
+    }
+
+    function saveCurrentView() {
+      if (editingVariantId) saveVariant();
+      else if (productAnchorId) saveProduct();
     }
   </script>
 </body>

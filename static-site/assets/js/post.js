@@ -318,13 +318,41 @@ function renderContentBlocks(blocks) {
   }).join("");
 }
 
+/* Schema.org yeu cau ngay theo chuan ISO 8601 (2026-06-23). Trong DB ngay
+   duoc luu theo dinh dang hien thi kieu Viet Nam ("23/6/2026", "10/07/2025")
+   nen phai doi truoc khi dua vao JSON-LD. Tra ve undefined neu khong doc
+   duoc dinh dang — thieu truong van tot hon truong sai chuan. */
+function toISODate(value) {
+  const raw = String(value == null ? "" : value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;            // da dung chuan
+  const m = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (!m) return undefined;
+  const day = Number(m[1]), month = Number(m[2]), year = Number(m[3]);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return undefined;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const d = new Date(iso + "T00:00:00Z");                      // chan ngay khong ton tai (31/02)
+  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== day) return undefined;
+  return iso;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await window.dbReady;
   const settings = db.settings.get();
   initCommonUI(settings);
 
+  /* URL chuẩn: /bai-viet/<slug>. URL cũ /bai-viet?id=... vẫn mở đúng
+     bài để link/bookmark/kết quả Google cũ không gãy. */
   const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
+  const path = window.location.pathname.replace(/\/+$/, "");
+  const matched = path.match(/\/bai-viet(?:\.html|\.php)?\/(.+)$/);
+  let slugFromPath = "";
+  if (matched) {
+    try { slugFromPath = decodeURIComponent(matched[1]); }
+    catch (e) { slugFromPath = matched[1]; }
+  }
+  const routeSlug = params.get("slug") || slugFromPath;
+  const bySlug = routeSlug ? db.posts.getBySlug(routeSlug) : null;
+  const id = bySlug ? bySlug.id : params.get("id");
 
   const layout = document.getElementById("post-layout");
   const metaBar = document.getElementById("post-meta-bar");
@@ -342,22 +370,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   db.posts.incrementViews(id);
   const post = db.posts.getById(id);
 
-  const fullTitle = `${post.title} | ${settings.siteName}`;
+  /* Ưu tiên Tiêu đề + Mô tả admin nhập trong phần SEO của bài; để
+     trống thì suy từ tiêu đề và tóm tắt. */
+  const fullTitle = postSeoTitle(post, settings.siteName);
+  const seoDesc = postSeoDesc(post);
   document.getElementById("page-title").textContent = fullTitle;
   const descEl = document.getElementById("page-description");
-  if (descEl) descEl.setAttribute("content", post.excerpt || "");
+  if (descEl) descEl.setAttribute("content", seoDesc);
 
-  const pageUrl = `${BASE_URL}/bai-viet?id=${encodeURIComponent(id)}`;
+  const canonicalPath = postUrl(post);
+  const pageUrl = `${BASE_URL}${canonicalPath}`;
+
+  /* Mở bằng URL cũ thì dọn thanh địa chỉ về /bai-viet/<slug> (không tải
+     lại trang). Redirect 301 thật nằm ở bai-viet.php để bot cũng thấy. */
+  if (window.location.pathname + window.location.search !== canonicalPath) {
+    try { history.replaceState(null, "", canonicalPath); } catch (e) {}
+  }
   const ogImage = isImageValue(post.emoji)
     ? (post.emoji.startsWith("http") || post.emoji.startsWith("data:") ? post.emoji : `${BASE_URL}${post.emoji}`)
     : `${BASE_URL}/uploads/1780645751588-lekzpy.png`;
   document.getElementById("page-canonical").setAttribute("href", pageUrl);
   document.getElementById("og-title").setAttribute("content", fullTitle);
-  document.getElementById("og-description").setAttribute("content", post.excerpt || "");
+  document.getElementById("og-description").setAttribute("content", seoDesc);
   document.getElementById("og-url").setAttribute("content", pageUrl);
   document.getElementById("og-image").setAttribute("content", ogImage);
   document.getElementById("twitter-title").setAttribute("content", fullTitle);
-  document.getElementById("twitter-description").setAttribute("content", post.excerpt || "");
+  document.getElementById("twitter-description").setAttribute("content", seoDesc);
   document.getElementById("twitter-image").setAttribute("content", ogImage);
 
   document.getElementById("breadcrumb-title").textContent = post.title;
@@ -370,15 +408,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("post-meta-date").textContent = `📅 ${post.date}`;
   setText("post-meta-views", post.views);
 
-  document.getElementById("post-title").textContent = post.title;
+  /* Bài dùng "trang HTML độc lập": trang được nhúng đã có sẵn tiêu đề,
+     mô tả và ảnh hero của riêng nó. Nếu site render thêm phần header
+     của mình nữa thì mọi thứ hiện hai lần. Ẩn phần nhìn thấy được,
+     nhưng vẫn giữ <h1> (ẩn với mắt, không ẩn với Google/trình đọc màn
+     hình) vì nội dung trong iframe là tài liệu riêng, không tính là
+     h1 của trang này. */
+  const trangDocLap = Boolean(post.htmlFileUrl);
 
-  if (post.excerpt) {
+  const titleEl = document.getElementById("post-title");
+  titleEl.textContent = post.title;
+  if (trangDocLap) titleEl.classList.add("sr-only");
+
+  if (post.excerpt && !trangDocLap) {
     const excerptEl = document.getElementById("post-excerpt");
     excerptEl.textContent = post.excerpt;
     excerptEl.classList.remove("hidden");
   }
 
-  if (isImageValue(post.emoji)) {
+  if (isImageValue(post.emoji) && !trangDocLap) {
     document.getElementById("post-cover-img").src = post.emoji;
     document.getElementById("post-cover-img").alt = post.title;
     document.getElementById("post-cover-caption").textContent = post.title;
@@ -404,7 +452,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* Share buttons */
-  const shareUrl = `${BASE_URL}/bai-viet?id=${encodeURIComponent(id)}`;
+  const shareUrl = pageUrl;
   const enc = encodeURIComponent(shareUrl);
   const encTitle = encodeURIComponent(post.title);
   document.getElementById("share-facebook").href = `https://www.facebook.com/sharer/sharer.php?u=${enc}`;
@@ -463,7 +511,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     mostReadList.innerHTML = mostRead.map((r, i) => `
       <li>
-        <a href="bai-viet?id=${escapeHtml(r.id)}" class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
+        <a href="${escapeHtml(postUrl(r))}" class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
           <span class="text-2xl font-black shrink-0 leading-none mt-0.5 w-7 text-center" style="color:${i < 3 ? "#e07b39" : "#d1d5db"};">${i + 1}</span>
           <div class="min-w-0">
             <p class="text-sm font-medium text-gray-700 group-hover:text-[#e07b39] transition-colors line-clamp-3 leading-snug">${escapeHtml(r.title)}</p>
@@ -484,11 +532,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    datePublished: post.date,
     author: { "@type": "Organization", name: settings.siteName },
     publisher: { "@type": "Organization", name: settings.siteName, url: BASE_URL },
-    mainEntityOfPage: `${BASE_URL}/bai-viet?id=${encodeURIComponent(id)}`,
+    mainEntityOfPage: pageUrl,
   };
+
+  /* Chi gan khi doi duoc sang ISO 8601; ngay sai dinh dang bi Google bo qua. */
+  const isoDate = toISODate(post.date);
+  if (isoDate) blogSchema.datePublished = isoDate;
 
   const faqItems = contentBlocks.filter((b) => b.type === "faq").flatMap((b) => b.items);
   const graph = [blogSchema];

@@ -1,0 +1,120 @@
+<?php
+/* ===================================================================
+   bai-viet.php — BẢN VÁ SẴN, chép đè lên bai-viet.php trên server.
+
+   ⚠️ TRƯỚC KHI UPLOAD: mở bai-viet.php hiện tại trên server, copy 3 giá
+   trị kết nối DB và thay vào ___TEN_DATABASE___ / ___TEN_USER___ /
+   ___MAT_KHAU___ bên dưới. File này để trong repo nên cố ý KHÔNG chứa
+   mật khẩu thật.
+
+   Cần thêm: thư mục php-patch/ (có seo-slug.php) đặt cạnh file này,
+   và 2 dòng RewriteRule trong .htaccess (xem README.md).
+=================================================================== */
+/* ===================================================================
+   bai-viet.php — Server-rendered Open Graph cho trang chi tiết bài viết.
+
+   Vì bot Facebook/Zalo KHÔNG chạy JavaScript, các thẻ og:* mà post.js
+   cập nhật lúc chạy sẽ không được bot nhìn thấy. File này đọc bài viết
+   từ DB và ghi thẳng og:title / og:description / og:image vào <head>
+   phía server, để mỗi bài share ra có đúng ảnh + tiêu đề của nó.
+
+   Phần thân trang vẫn do bai-viet.html + post.js render như cũ — file
+   này chỉ nạp lại bai-viet.html và thay các thẻ meta trong <head>.
+
+   An toàn: nếu thiếu id, lỗi DB, hoặc không tìm thấy bài → trả nguyên
+   bai-viet.html không đổi (hành vi y hệt trước đây).
+=================================================================== */
+
+require_once __DIR__ . '/php-patch/seo-slug.php';
+
+$SITE        = 'https://bunquayphuquoc.com';
+$DEFAULT_IMG = $SITE . '/uploads/img_b37e910f635ce8da.jpg';
+$htmlPath    = __DIR__ . '/bai-viet.html';
+
+$html = @file_get_contents($htmlPath);
+if ($html === false) { http_response_code(500); echo 'Not found'; exit; }
+
+header('Content-Type: text/html; charset=utf-8');
+
+$id   = isset($_GET['id'])   ? trim((string)$_GET['id'])   : '';
+$slug = isset($_GET['slug']) ? trim((string)$_GET['slug']) : '';
+$post = null;
+
+if ($id !== '' || $slug !== '') {
+    try {
+        // DB (mirror api.php — chỉ chạy phía server, không bao giờ lộ mã nguồn)
+        $pdo = new PDO(
+            'mysql:host=localhost;dbname=___TEN_DATABASE___;charset=utf8mb4',
+            '___TEN_USER___', '___MAT_KHAU___',
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+        // Đọc cả danh sách: cần để tra theo slug (slug nằm trong JSON).
+        $rows = $pdo->query('SELECT data FROM posts')->fetchAll(PDO::FETCH_ASSOC);
+        $posts = [];
+        foreach ($rows as $r) {
+            $d = json_decode($r['data'], true);
+            if (is_array($d) && !empty($d['published'])) $posts[] = $d;
+        }
+        $post = bq_post_find($posts, $slug, $id);
+    } catch (Throwable $e) {
+        $post = null; // lỗi DB → dùng head mặc định
+    }
+}
+
+/* Vào bằng URL cũ (?id=... hoặc slug cũ) -> 301 sang URL chuẩn. Điều kiện
+   so sánh cũng là chốt chặn lặp vô hạn: đang ở đúng URL chuẩn thì hai vế
+   bằng nhau nên không redirect nữa. */
+if ($post && bq_slugify($slug) !== bq_post_slug($post)) {
+    header('Location: ' . bq_post_url($post), true, 301);
+    exit;
+}
+
+// Slug/id sai -> trả 404 thật, đừng trả 200 cho trang rỗng.
+if (!$post && ($id !== '' || $slug !== '')) {
+    http_response_code(404);
+}
+
+if ($post) {
+    $siteName = 'Bún Quậy Như Ý';
+    $title    = bq_post_seo_title($post, $siteName);
+    $desc     = bq_post_seo_desc($post);
+    $emoji    = trim($post['emoji'] ?? '');
+    $url      = bq_post_abs_url($post);
+
+    // emoji field = ảnh cover (đường dẫn/URL) HOẶC một emoji thật.
+    $isImg = (bool)preg_match('#^(https?://|data:|/)#', $emoji)
+          || (bool)preg_match('#\.(jpe?g|png|webp|gif)$#i', $emoji);
+    if ($isImg) {
+        $img = preg_match('#^(https?:|data:)#', $emoji) ? $emoji : $SITE . $emoji;
+    } else {
+        $img = $DEFAULT_IMG;
+    }
+
+    // Thay giá trị của phần tử mang id đã biết. Dùng callback để tránh
+    // lỗi backreference ($1, \1...) khi nội dung có ký tự đặc biệt.
+    $setAttr = function ($html, $id, $attr, $value) {
+        $val = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        $re  = '/(id="' . preg_quote($id, '/') . '"[^>]*\b' . $attr . '=")[^"]*(")/';
+        return preg_replace_callback($re, function ($m) use ($val) {
+            return $m[1] . $val . $m[2];
+        }, $html, 1);
+    };
+    $setTitle = function ($html, $value) {
+        $val = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        return preg_replace_callback('/(<title id="page-title">).*?(<\/title>)/s',
+            function ($m) use ($val) { return $m[1] . $val . $m[2]; }, $html, 1);
+    };
+
+    $html = $setTitle($html, $title);
+    $html = $setAttr($html, 'page-description',   'content', $desc);
+    $html = $setAttr($html, 'page-canonical',     'href',    $url);
+    $html = $setAttr($html, 'og-title',           'content', $title);
+    $html = $setAttr($html, 'og-description',     'content', $desc);
+    $html = $setAttr($html, 'og-url',             'content', $url);
+    $html = $setAttr($html, 'og-image',           'content', $img);
+    $html = $setAttr($html, 'twitter-title',      'content', $title);
+    $html = $setAttr($html, 'twitter-description', 'content', $desc);
+    $html = $setAttr($html, 'twitter-image',      'content', $img);
+}
+
+echo $html;
