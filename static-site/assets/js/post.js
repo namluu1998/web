@@ -318,6 +318,23 @@ function renderContentBlocks(blocks) {
   }).join("");
 }
 
+/* Schema.org yeu cau ngay theo chuan ISO 8601 (2026-06-23). Trong DB ngay
+   duoc luu theo dinh dang hien thi kieu Viet Nam ("23/6/2026", "10/07/2025")
+   nen phai doi truoc khi dua vao JSON-LD. Tra ve undefined neu khong doc
+   duoc dinh dang — thieu truong van tot hon truong sai chuan. */
+function toISODate(value) {
+  const raw = String(value == null ? "" : value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;            // da dung chuan
+  const m = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (!m) return undefined;
+  const day = Number(m[1]), month = Number(m[2]), year = Number(m[3]);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return undefined;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const d = new Date(iso + "T00:00:00Z");                      // chan ngay khong ton tai (31/02)
+  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== day) return undefined;
+  return iso;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await window.dbReady;
   const settings = db.settings.get();
@@ -515,11 +532,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    datePublished: post.date,
     author: { "@type": "Organization", name: settings.siteName },
     publisher: { "@type": "Organization", name: settings.siteName, url: BASE_URL },
     mainEntityOfPage: pageUrl,
   };
+
+  /* Chi gan khi doi duoc sang ISO 8601; ngay sai dinh dang bi Google bo qua. */
+  const isoDate = toISODate(post.date);
+  if (isoDate) blogSchema.datePublished = isoDate;
 
   const faqItems = contentBlocks.filter((b) => b.type === "faq").flatMap((b) => b.items);
   const graph = [blogSchema];

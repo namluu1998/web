@@ -1,0 +1,13 @@
+# /uploads/articles/.htaccess
+# Cac file HTML bai viet tai len o thu muc nay chi la ban sao noi dung cua
+# trang /bai-viet/<slug>. Neu de Google index chung, chung se canh tranh voi
+# chinh bai viet that (trung noi dung, va ban sao khong co menu/CTA/internal link).
+#
+# noindex  : khong dua vao ket qua tim kiem
+# follow   : van cho bot di theo cac link ben trong (khong chan luong link)
+#
+# Ap dung o cap header nen co hieu luc ca voi file moi tai len sau nay,
+# khong can sua tung file mot.
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, follow"
+</IfModule>

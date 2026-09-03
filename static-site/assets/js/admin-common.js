@@ -6,6 +6,7 @@
 const ADMIN_NAV = [
   { href: "dashboard.html", label: "Dashboard", icon: "📊", exact: true },
   { href: "bai-viet.html", label: "Bài viết", icon: "📝", area: "posts" },
+  { href: "chuyen-doi-html.html", label: "Chuyển HTML", icon: "🔄", area: "posts" },
   { href: "thuc-don.html", label: "Thực đơn", icon: "🍜", area: "menu" },
   { href: "dat-ban.html", label: "Đặt bàn", icon: "📋", area: "reservations" },
   { href: "danh-gia.html", label: "Đánh giá", icon: "⭐", area: "reviews" },

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chuyển file HTML thành nội dung | Quản trị Bún Quậy Như Ý</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body class="admin-body">
+  <button id="admin-menu-toggle" class="icon-btn" style="position:fixed;top:1rem;left:1rem;z-index:101;">☰</button>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="brand">🦐 Đặc Sản<br /><small style="font-weight:400;font-size:0.75rem;opacity:0.7;">Phú Quốc Admin</small></div>
+    <nav id="admin-nav"></nav>
+    <div class="user-box" id="admin-user-box"></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <h1 class="text-xl font-bold">🔄 Chuyển file HTML thành nội dung</h1>
+      <a href="bai-viet.html" class="btn-secondary">← Về danh sách bài viết</a>
+    </div>
+
+    <div class="admin-card" style="max-width:1100px;">
+      <p class="text-sm text-gray-600 mb-1">
+        Dán mã HTML hoặc chọn file <code>.html</code>. Công cụ chuyển sang cú pháp
+        ô <strong>Nội dung</strong> để bạn sao chép vào bài viết.
+      </p>
+      <p class="text-xs text-gray-400 mb-4">
+        File chỉ được đọc trên máy bạn, không tải lên server.
+        Lý do nên dùng ô Nội dung thay vì nhúng file: nội dung trong
+        <code>&lt;iframe&gt;</code> được Google coi là tài liệu riêng, không tính
+        cho trang bài viết.
+      </p>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <label class="btn-secondary" style="cursor:pointer;">
+          📂 Chọn file .html
+          <input type="file" id="file-input" accept=".html,.htm,text/html" class="hidden" />
+        </label>
+        <button type="button" id="btn-convert" class="btn-primary">🔄 Chuyển đổi</button>
+        <button type="button" id="btn-clear" class="btn-secondary">Xoá hết</button>
+        <span id="trang-thai" class="text-sm"></span>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">HTML gốc</label>
+          <textarea id="o-html" class="form-textarea" rows="20"
+                    style="font-family:monospace;font-size:0.8rem;"
+                    placeholder="Dán toàn bộ mã HTML vào đây, hoặc kéo thả file .html lên trang này…"></textarea>
+        </div>
+        <div>
+          <div class="flex items-center justify-between gap-2">
+            <label class="form-label">Nội dung đã chuyển</label>
+            <button type="button" id="btn-copy" class="btn-secondary" style="padding:.3rem .7rem;font-size:.78rem;">📋 Sao chép</button>
+          </div>
+          <textarea id="o-ketqua" class="form-textarea" rows="20" readonly
+                    style="font-family:monospace;font-size:0.8rem;background:#f9fafb;"></textarea>
+        </div>
+      </div>
+
+      <div id="thong-ke" class="mt-3 text-sm"></div>
+      <div id="canh-bao" class="mt-3"></div>
+    </div>
+  </main>
+
+  <script src="../assets/js/storage.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/admin-common.js"></script>
+  <script src="../assets/js/html-to-content.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      const user = initAdminLayout("bai-viet.html");
+      if (!user) return;
+
+      const oHtml     = document.getElementById("o-html");
+      const oKetQua   = document.getElementById("o-ketqua");
+      const trangThai = document.getElementById("trang-thai");
+      const thongKe   = document.getElementById("thong-ke");
+      const canhBao   = document.getElementById("canh-bao");
+
+      const TEN_KHOI = {
+        heading: "tiêu đề lớn", subheading: "tiêu đề phụ", paragraph: "đoạn văn",
+        bullets: "danh sách", numbered: "danh sách số", table: "bảng",
+        image: "ảnh", faq: "khối FAQ", cta: "khối kêu gọi", grid: "khối lưới",
+        callout: "khối ghi chú", toc: "mục lục"
+      };
+
+      function thoat(s) {
+        return String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+      }
+
+      function chuyenDoi() {
+        const html = oHtml.value.trim();
+        if (!html) { trangThai.textContent = "Chưa có HTML để chuyển."; trangThai.style.color = "#dc2626"; return; }
+
+        let kq;
+        try {
+          kq = htmlToContent(html);
+        } catch (err) {
+          trangThai.textContent = "❌ " + err.message;
+          trangThai.style.color = "#dc2626";
+          return;
+        }
+
+        oKetQua.value = kq.content;
+
+        const phan = Object.keys(kq.stats).map((k) => "<strong>" + kq.stats[k] + "</strong> " + (TEN_KHOI[k] || k));
+        thongKe.innerHTML = phan.length
+          ? "✅ Đã tạo: " + phan.join(" · ") + " — tổng <strong>" +
+            kq.content.trim().split(/\s+/).length + "</strong> từ."
+          : "Không tạo được khối nào từ HTML này.";
+
+        if (kq.warnings.length) {
+          canhBao.innerHTML =
+            "<div style='padding:.8rem 1rem;border-radius:.5rem;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:.82rem;line-height:1.65;'>" +
+            "<strong>⚠️ " + kq.warnings.length + " điểm cần xem lại</strong>" +
+            "<ul style='margin:.45rem 0 0 1.1rem;list-style:disc;'>" +
+            kq.warnings.map((w) => "<li>" + thoat(w) + "</li>").join("") +
+            "</ul></div>";
+        } else {
+          canhBao.innerHTML =
+            "<div style='padding:.7rem 1rem;border-radius:.5rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:.82rem;'>" +
+            "✅ Không có cảnh báo nào.</div>";
+        }
+
+        trangThai.textContent = "Xong — kiểm tra kết quả rồi sao chép.";
+        trangThai.style.color = "#16a34a";
+      }
+
+      function napFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => { oHtml.value = String(reader.result || ""); chuyenDoi(); };
+        reader.onerror = () => { trangThai.textContent = "❌ Không đọc được file."; trangThai.style.color = "#dc2626"; };
+        reader.readAsText(file, "UTF-8");
+      }
+
+      document.getElementById("btn-convert").addEventListener("click", chuyenDoi);
+      document.getElementById("file-input").addEventListener("change", (e) => {
+        napFile(e.target.files[0]);
+        e.target.value = "";
+      });
+
+      document.getElementById("btn-clear").addEventListener("click", () => {
+        oHtml.value = ""; oKetQua.value = "";
+        thongKe.innerHTML = ""; canhBao.innerHTML = "";
+        trangThai.textContent = "";
+      });
+
+      document.getElementById("btn-copy").addEventListener("click", async () => {
+        if (!oKetQua.value) return;
+        try {
+          await navigator.clipboard.writeText(oKetQua.value);
+          trangThai.textContent = "📋 Đã sao chép — dán vào ô Nội dung của bài viết.";
+          trangThai.style.color = "#16a34a";
+        } catch (e) {
+          /* Trinh duyet chan clipboard API (vd. ngoai HTTPS) — chon san chu
+             de nguoi dung tu bam Ctrl+C. */
+          oKetQua.removeAttribute("readonly");
+          oKetQua.select();
+          oKetQua.setAttribute("readonly", "readonly");
+          trangThai.textContent = "Đã bôi đen sẵn — bấm Ctrl+C (hoặc ⌘+C) để sao chép.";
+          trangThai.style.color = "#6b7280";
+        }
+      });
+
+      /* Keo tha file .html thang vao trang. */
+      ["dragover", "drop"].forEach((ev) => {
+        document.addEventListener(ev, (e) => { e.preventDefault(); });
+      });
+      document.addEventListener("drop", (e) => {
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) napFile(f);
+      });
+    })();
+  </script>
+</body>
+</html>
